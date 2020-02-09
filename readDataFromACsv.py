@@ -1,6 +1,6 @@
 #
 # This file is part of the Air Force Institute of Technology (AFIT) 
-# Resilient Sensor Grig (RSG) Extract, Transform, Load (ETL) Tool.
+# Resilient Sensor Grid (RSG) Extract, Transform, Load (ETL) Tool.
 #
 # Written by:
 #               Ryan D. L. Engle
