@@ -20,23 +20,33 @@
 # or consequential damages arising out of, or in connection with, the use of this 
 # software. USE AT YOUR OWN RISK.
 #
-# Last Modified: 2020 0209 1430
+# Last Modified: 2020 0210 1750
+import sys
+
 import extracter 
+import rsg_etl_tool
 
 def startRsgEtl(pathToData=None):
     '''
         Starting point for Resilient Sensor Grid Extract, Transform, and Load tool
     '''
-    # TODO GUI
 
-    # No GUI
-    searchAllSubFolders = False
-    result = extracter.doExtract(pathToData, searchAllSubFolders)
-    print result.info()
+    startGui = True
+    for arg in sys.argv:
+        if arg == '-nogui':
+            startGui = False
+    
+    if startGui == False:
+        print 'startRsgEtl(): Running command line testing '
+        searchAllSubFolders = False
+        result = extracter.doExtract(pathToData, searchAllSubFolders)
+        print result.info()
+    else:
+        print 'startRsgEtl(): Starting GUI'
+        rsg_etl_tool.start(pathToData)
 
 if __name__ == "__main__":
     pathToData = 'C:\\Users\\rdeng\\Documents\\dev\\rsg-database\\data\\Homestead\\2007'
-
     startRsgEtl(pathToData)
 
     
