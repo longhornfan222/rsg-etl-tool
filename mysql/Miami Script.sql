@@ -1773,46 +1773,188 @@ AND 2mDewPt > 66;
 # variance in solar radiation, 10m wind and 2m rel humidity.  Out: [356 * # years]
 
 # Lists all Variance for each location every day
-SELECT LocationName, ODate, Variance(2mSolRad) AS SolarRadVar, Variance(10mWind) AS WindVar, Variance(2mRelHum) AS RelHumVar
+SELECT LocationName, Date_Format(ODate, '%d-%m-%Y') AS Dates, Variance(2mSolRad) AS SolarRadVar, Variance(10mWind) AS WindVar, Variance(2mRelHum) AS RelHumVar
 FROM sensordata
 GROUP BY LocationName, ODate
-LIMIT 0,3000;
+#INTO OUTFILE 'C:/Temp/LocationVariance.csv' 
+#FIELDS ENCLOSED BY '"' 
+#TERMINATED BY ';' 
+#ESCAPED BY '"' 
+#LINES TERMINATED BY '\r\n'
+;
 
-# Calculates the location with the minimun daily Variance for Solar Radiation
-SELECT LocationName, ODate, Min(SolRadVar)
+# Calculates the location with the minimun daily Variance for Solar Radiation, 10m Wind Variance, Relative Humidity Variance
+SELECT LocationName, Date_Format(ODate, '%d-%m-%Y') AS Dates, Min(SolRadVar), Min(WindVar), Min(RelHumVar)
 FROM 
-	(SELECT LocationName, ODate, Variance(2mSolRad) AS SolRadVar
+	(SELECT LocationName, ODate, Variance(2mSolRad) AS SolRadVar, Variance(10mWind) AS WindVar, Variance(2mRelHum) AS RelHumVar
 	FROM sensordata
-	GROUP BY LocationName, ODate) SolarVar
-GROUP BY ODate;
+	GROUP BY LocationName, ODate) MinVars
+GROUP BY LocationName, MOnth(ODate), Year(ODate)
+#INTO OUTFILE 'C:/Temp/MinSolRadVar.csv' 
+#FIELDS ENCLOSED BY '"' 
+#TERMINATED BY ';' 
+#ESCAPED BY '"' 
+#LINES TERMINATED BY '\r\n'
+;
 
-# Calculates the location with the minimun daily Variance for 10m Wind Readings
-SELECT LocationName, ODate, Min(WindVar)
+# Query 2: Using the matrix from 1.) Select the day (1/season) with the highest min variance (assuming not frequency) 
+# in each year, then select the day with the highest min variance (assuming not frequency) for all years. Out: [4 * 1]
+
+# Next sequence of code adds a column called seasons and conditionally populates it based on month
+ALTER Table sensordata 
+ADD COLUMN season VARCHAR (25) AFTER OTime;
+
+DESC Sensordata;
+
+UPDATE sensordata SET season = 'winter' WHERE date_format(ODate, '%m') = '01';
+UPDATE sensordata SET season = 'winter' WHERE date_format(ODate, '%m') = '02';
+UPDATE sensordata SET season = 'winter' WHERE date_format(ODate, '%m') = '12';
+UPDATE sensordata SET season = 'spring' WHERE date_format(ODate, '%m') = '03';
+UPDATE sensordata SET season = 'spring' WHERE date_format(ODate, '%m') = '04';
+UPDATE sensordata SET season = 'spring' WHERE date_format(ODate, '%m') = '05';
+UPDATE sensordata SET season = 'summer' WHERE date_format(ODate, '%m') = '06';
+UPDATE sensordata SET season = 'summer' WHERE date_format(ODate, '%m') = '07';
+UPDATE sensordata SET season = 'summer' WHERE date_format(ODate, '%m') = '08';
+UPDATE sensordata SET season = 'fall' WHERE date_format(ODate, '%m') = '09';
+UPDATE sensordata SET season = 'fall' WHERE date_format(ODate, '%m') = '10';
+UPDATE sensordata SET season = 'fall' WHERE date_format(ODate, '%m') = '11';
+
+SELECT * 
+FROM sensordata
+WHERE season = 'summer';
+
+# Code selects the single Max of the min values by month and year
+SELECT LocationName, Date_Format(ODate, '%d-%m-%Y') AS Dates, Max(MinSolRadVar), Max(MinWindVar), Max(MinRelHumVar)
+FROM
+(SELECT LocationName, ODate, Min(SolRadVar) AS MinSolRadVar, Min(WindVar) AS MinWindVar, Min(RelHumVar) AS MinRelHumVar
 FROM 
-	(SELECT LocationName, ODate, Variance(10mWind) AS WindVar
+	(SELECT LocationName, ODate, Variance(2mSolRad) AS SolRadVar, Variance(10mWind) AS WindVar, Variance(2mRelHum) AS RelHumVar
 	FROM sensordata
-	GROUP BY LocationName, ODate) 10WindVar
-GROUP BY ODate;
+	GROUP BY LocationName, ODate) Variances
+GROUP BY LocationName, ODate) MinVars
+GROUP BY LocationName, Month(ODate), Year(ODate)
+;
 
-# Calculates the location with the minimun daily Variance for Relative Humidity
-SELECT LocationName, ODate, Min(RelHumVar)
+# Code selects the single Max by season by location
+SELECT LocationName, season, Max(MinSolRadVar), Max(MinWindVar), Max(MinRelHumVar)
+FROM
+(SELECT LocationName, ODate, season, Min(SolRadVar) AS MinSolRadVar, Min(WindVar) AS MinWindVar, Min(RelHumVar) AS MinRelHumVar
 FROM 
-	(SELECT LocationName, ODate, Variance(2mRelHum) AS RelHumVar
+	(SELECT LocationName, ODate, season, Variance(2mSolRad) AS SolRadVar, Variance(10mWind) AS WindVar, Variance(2mRelHum) AS RelHumVar
 	FROM sensordata
-	GROUP BY LocationName, ODate) 2mRelHumVar
-GROUP BY ODate;
-
-# Query 2: Using the matrix from 1.) Select the day (1/season) with the highest frequency in each year, 
-# then select the day with the highest frequency for all years. Out: [4 * 1]
-
-
+	GROUP BY LocationName, ODate) Variances
+GROUP BY LocationName, ODate) MinVars
+GROUP BY LocationName, season
+;
 
 # Query 3: Which 2 hours/day have the highest change in solar, 10m wind and rel humidity for all days and years 
 # at each station; where 2nd hour occurs after 1st. Out: ( station: 1st, 2nd)
+
+DESC sensordata;
+SELECT LocationName, ODate, OTime, 2mSolRad, 10mWind, 2mRelHum
+FROM sensordata
+ 
 
 
 # Query 4: What is the percent of ‘null’ values by each sensor for all days and years at each  
 # station?  Out: [days*year], [years*station], (station, total null %)   
 
+# Following code calculates # of Nulls per sensor over all years
+SELECT 
+	LocationName,
+	COUNT(60cmTair) 60cmTair_not_null, 
+    COUNT(*) - COUNT(60cmTair) 60cmTair_null, 
+    (COUNT(*) - COUNT(60cmTair)) / COUNT(*) 60cmTair_Pernull, 
+	COUNT(2mTair) 2mTair_not_null, 
+    COUNT(*) - COUNT(2mTair) 2mTair_null, 
+    (COUNT(*) - COUNT(2mTair)) / COUNT(*) 2mTair_Pernull, 
+    COUNT(10mTair) 10mTair_not_null, 
+    COUNT(*) - COUNT(10mTair) 10mTair_null, 
+    (COUNT(*) - COUNT(10mTair)) / COUNT(*) 10mTair_Pernull, 
+	COUNT(Neg10cmTsoil) Neg10cmTsoil_not_null, 
+    COUNT(*) - COUNT(Neg10cmTsoil) Neg10cmTsoil_null, 
+    (COUNT(*) - COUNT(Neg10cmTsoil)) / COUNT(*) Neg10cmTsoil_Pernull, 
+    COUNT(2mDewPt) 2mDewPt_not_null, 
+    COUNT(*) - COUNT(2mDewPt) 2mDewPt_null, 
+    (COUNT(*) - COUNT(2mDewPt)) / COUNT(*) 2mDewPt_Pernull, 
+    COUNT(2mRelHum) 2mRelHum_not_null, 
+    COUNT(*) - COUNT(2mRelHum) 2mRelHum_null, 
+    (COUNT(*) - COUNT(2mRelHum)) / COUNT(*) 2mRelHum_Pernull, 
+    COUNT(2mRain) 2mRain_not_null, 
+    COUNT(*) - COUNT(2mRain) 2mRain_null, 
+    (COUNT(*) - COUNT(2mRain)) / COUNT(*) 2mRain_Pernull, 
+    COUNT(2mSolRad) 2mSolRad_not_null, 
+    COUNT(*) - COUNT(2mSolRad) 2mSolRad_null, 
+    (COUNT(*) - COUNT(2mSolRad)) / COUNT(*) 2mSolRad_Pernull, 
+    COUNT(10mWind) 10mWind_not_null, 
+    COUNT(*) - COUNT(10mWind) 10mWind_null,
+    (COUNT(*) - COUNT(10mWind)) / COUNT(*) 10mWind_Pernull, 
+    COUNT(10mWindMin) 10mWindMin_not_null, 
+    COUNT(*) - COUNT(10mWindMin) 10mWindMin_null, 
+    (COUNT(*) - COUNT(10mWindMin)) / COUNT(*) 10mWindMin_Pernull, 
+    COUNT(10mWindMax) 10mWindMax_not_null,
+    COUNT(*) - COUNT(10mWindMax) 10mWindMax_null,
+    (COUNT(*) - COUNT(10mWindMax)) / COUNT(*) 10mWindMax_Pernull,
+    COUNT(10mWDir) 10mWDir_not_null, 
+    COUNT(*) - COUNT(10mWDir) 10mWDir_null,
+    (COUNT(*) - COUNT(10mWDir)) / COUNT(*) 10mWDir_Pernull,
+    COUNT(BP) BP_not_null, 
+    COUNT(*) - COUNT(BP) BP_null, 
+    (COUNT(*) - COUNT(BP)) / COUNT(*) BP_Pernull,
+    COUNT(2mWetBulb) 2mWetBulb_not_null, 
+    COUNT(*) - COUNT(2mWetBulb) 2mWetBulb_null, 
+    (COUNT(*) - COUNT(2mWetBulb)) / COUNT(*) 2mWetBulb_Pernull 
+FROM sensordata
+GROUP by LocationName;
 
-
+# The following code will calculate the percentage of nulls for each station by day, month, year
+# In order to calculate by day, change %d as Days
+# In order to calculate by month, change %m as Months
+# In order to calculate by year, change %Y as Years
+SELECT 
+	LocationName,
+    Date_format(ODate, '%m-%Y') AS MonthsYears,
+	COUNT(60cmTair) 60cmTair_not_null, 
+    COUNT(*) - COUNT(60cmTair) 60cmTair_null, 
+    (COUNT(*) - COUNT(60cmTair)) / COUNT(*) 60cmTair_Pernull, 
+	COUNT(2mTair) 2mTair_not_null, 
+    COUNT(*) - COUNT(2mTair) 2mTair_null, 
+    (COUNT(*) - COUNT(2mTair)) / COUNT(*) 2mTair_Pernull, 
+    COUNT(10mTair) 10mTair_not_null, 
+    COUNT(*) - COUNT(10mTair) 10mTair_null, 
+    (COUNT(*) - COUNT(10mTair)) / COUNT(*) 10mTair_Pernull, 
+	COUNT(Neg10cmTsoil) Neg10cmTsoil_not_null, 
+    COUNT(*) - COUNT(Neg10cmTsoil) Neg10cmTsoil_null, 
+    (COUNT(*) - COUNT(Neg10cmTsoil)) / COUNT(*) Neg10cmTsoil_Pernull, 
+    COUNT(2mDewPt) 2mDewPt_not_null, 
+    COUNT(*) - COUNT(2mDewPt) 2mDewPt_null, 
+    (COUNT(*) - COUNT(2mDewPt)) / COUNT(*) 2mDewPt_Pernull, 
+    COUNT(2mRelHum) 2mRelHum_not_null, 
+    COUNT(*) - COUNT(2mRelHum) 2mRelHum_null, 
+    (COUNT(*) - COUNT(2mRelHum)) / COUNT(*) 2mRelHum_Pernull, 
+    COUNT(2mRain) 2mRain_not_null, 
+    COUNT(*) - COUNT(2mRain) 2mRain_null, 
+    (COUNT(*) - COUNT(2mRain)) / COUNT(*) 2mRain_Pernull, 
+    COUNT(2mSolRad) 2mSolRad_not_null, 
+    COUNT(*) - COUNT(2mSolRad) 2mSolRad_null, 
+    (COUNT(*) - COUNT(2mSolRad)) / COUNT(*) 2mSolRad_Pernull, 
+    COUNT(10mWind) 10mWind_not_null, 
+    COUNT(*) - COUNT(10mWind) 10mWind_null,
+    (COUNT(*) - COUNT(10mWind)) / COUNT(*) 10mWind_Pernull, 
+    COUNT(10mWindMin) 10mWindMin_not_null, 
+    COUNT(*) - COUNT(10mWindMin) 10mWindMin_null, 
+    (COUNT(*) - COUNT(10mWindMin)) / COUNT(*) 10mWindMin_Pernull, 
+    COUNT(10mWindMax) 10mWindMax_not_null,
+    COUNT(*) - COUNT(10mWindMax) 10mWindMax_null,
+    (COUNT(*) - COUNT(10mWindMax)) / COUNT(*) 10mWindMax_Pernull,
+    COUNT(10mWDir) 10mWDir_not_null, 
+    COUNT(*) - COUNT(10mWDir) 10mWDir_null,
+    (COUNT(*) - COUNT(10mWDir)) / COUNT(*) 10mWDir_Pernull,
+    COUNT(BP) BP_not_null, 
+    COUNT(*) - COUNT(BP) BP_null, 
+    (COUNT(*) - COUNT(BP)) / COUNT(*) BP_Pernull,
+    COUNT(2mWetBulb) 2mWetBulb_not_null, 
+    COUNT(*) - COUNT(2mWetBulb) 2mWetBulb_null, 
+    (COUNT(*) - COUNT(2mWetBulb)) / COUNT(*) 2mWetBulb_Pernull 
+FROM sensordata
+GROUP by LocationName, Year(ODate), Month(ODate);  # change Year/Month/Day to group by desired time period
