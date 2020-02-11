@@ -20,29 +20,11 @@
 # or consequential damages arising out of, or in connection with, the use of this 
 # software. USE AT YOUR OWN RISK.
 #
-# Last Modified: 2020 0209 1430
+# Last Modified: 2020 0210 2035
 
 import os, sys
 
-def getFqpnForCsvsInFolder(folder=None):
-    '''
-        Searches a folder and returns a list of fully qualified paths to the CSVs
-    '''
-    allFqpnCsvs = None
-    try:
-        # Get all files in specified path
-        allFilenames = os.listdir(folder)
-        # Get the applicable CSVs and build the fully qualified path name
-        allFqpnCsvs = [ os.path.join(folder, filename) for filename in allFilenames if filename.endswith('.csv') ]
-    except Exception as e:
-        errMsg = 'ERROR getFqpnForCsvsInFolder(): Line {}: '.format(sys.exc_info()[-1].tb_lineno) 
-        errMsg = '\tSearch folder was: ' + str(folder)
-        errMsg += e.message 
-        print errMsg
-        allFqpnCsvs = None    
-    
-    return allFqpnCsvs
-
+import getFqpnForCsvsInFolder
 
 def findData(pathToData = None, searchAllSubFolders = False):
     '''
@@ -53,14 +35,17 @@ def findData(pathToData = None, searchAllSubFolders = False):
         print 'findData(): Invalid folder location provided (None)'
         return None
 
+    # TODO if necessary
+    #if searchAllSubFolders is True:
+    #    print 'findData(): Searching all sub folders.'
+
     allFqpnCsvs = None
     if searchAllSubFolders is False:
         print 'findData(): Searching only: ' + str(pathToData)               
-        allFqpnCsvs = getFqpnForCsvsInFolder(pathToData)
+        allFqpnCsvs = getFqpnForCsvsInFolder.getFqpnForCsvsInFolder(pathToData)
     
     return allFqpnCsvs
 
 if __name__ == "__main__":
-    pathToData = 'C:\\Users\\rdeng\\Documents\\dev\\rsg-database\\data\\Homestead\\2007'
-    
-    print findData(pathToData)
+    pathToData = 'C:\\Users\\rdeng\\Documents\\dev\\rsg-database\\data\\Homestead\\2007'    
+    print findData(pathToData, False)
