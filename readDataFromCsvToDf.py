@@ -20,13 +20,13 @@
 # or consequential damages arising out of, or in connection with, the use of this 
 # software. USE AT YOUR OWN RISK.
 #
-# Last Modified: 2020 0209 1400
+# Last Modified: 2020 0212 1415
 
 import pandas as pd
 import os.path as ospath
 import sys
 
-def readDataFromACsv(pathToCsvFile = None):
+def readDataFromCsvToDf(pathToCsvFile = None):
     """
         Reads data from a CSV file into pandas dataframe
         
@@ -36,7 +36,7 @@ def readDataFromACsv(pathToCsvFile = None):
     try:
         df = pd.read_csv(pathToCsvFile)
     except Exception as e:
-        errMsg = 'ERROR readDataFromACsv(): Line {}: '.format(sys.exc_info()[-1].tb_lineno) 
+        errMsg = 'ERROR readDataFromCsvToDf(): Line {}: '.format(sys.exc_info()[-1].tb_lineno) 
         errMsg += e.message 
         print errMsg
         df = None
@@ -49,7 +49,7 @@ if __name__ == "__main__":
     aCsv = 'FAWN_report.csv'
 
     aCsvFile = ospath.join(pathToData, aCsv)
-    df = readDataFromACsv(aCsvFile)
+    df = readDataFromCsvToDf(aCsvFile)
 
     if df is not None:
         print df.keys()
