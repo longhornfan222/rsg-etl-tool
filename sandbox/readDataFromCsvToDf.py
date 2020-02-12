@@ -20,36 +20,36 @@
 # or consequential damages arising out of, or in connection with, the use of this 
 # software. USE AT YOUR OWN RISK.
 #
-# Last Modified: 2020 0212 1515
-import os, sys
+# Last Modified: 2020 0212 1415
 
-#import extracter 
-import rsg_etl_tool
+import pandas as pd
+import os.path as ospath
+import sys
 
-def startRsgEtl(rpnKnownTablesCsv, pathToData=None):
-    '''
-        Starting point for Resilient Sensor Grid Extract, Transform, and Load tool
-    '''
+def readDataFromCsvToDf(pathToCsvFile = None):
+    """
+        Reads data from a CSV file into pandas dataframe
+        
+        Output
+    """
+    df = None
+    try:
+        df = pd.read_csv(pathToCsvFile)
+    except Exception as e:
+        errMsg = 'ERROR readDataFromCsvToDf(): Line {}: '.format(sys.exc_info()[-1].tb_lineno) 
+        errMsg += e.message 
+        print errMsg
+        df = None
 
-    startGui = True
-    for arg in sys.argv:
-        if arg == '-nogui':
-            startGui = False
-    
-    if startGui == False:
-        # TODO
-        print 'startRsgEtl(): Running command line testing '
-        searchAllSubFolders = False
-
-        #result = extracter.doExtract(pathToData, searchAllSubFolders)
-        #print result.info()
-    else:
-        print 'startRsgEtl(): Starting GUI'
-        rsg_etl_tool.start(rpnKnownTablesCsv, pathToData)
+    return df
 
 if __name__ == "__main__":
+    # Path to data for Resilient Smart Grid DDDAS (UMiami)
     pathToData = 'C:\\Users\\rdeng\\Documents\\dev\\rsg-database\\data\\Homestead\\2007'
-    rpnKnownTablesCsv = os.path.join('mysql', 'knownTables.csv')
-    startRsgEtl(rpnKnownTablesCsv, pathToData)
+    aCsv = 'FAWN_report.csv'
 
-    
+    aCsvFile = ospath.join(pathToData, aCsv)
+    df = readDataFromCsvToDf(aCsvFile)
+
+    if df is not None:
+        print df.keys()

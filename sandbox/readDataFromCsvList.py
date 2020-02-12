@@ -20,8 +20,7 @@
 # or consequential damages arising out of, or in connection with, the use of this 
 # software. USE AT YOUR OWN RISK.
 #
-# Last Modified: 2020 0212 1558
-
+# Last Modified: 2020 0212 1645
 import pandas as pd
 import sys
 import os.path as ospath
@@ -30,7 +29,7 @@ import readDataFromCsvToDf
 
 def readDataFromCsvList(csvList = None):
     '''
-            Reads data from multiple CSV files into pandas dataframe
+        Reads data from multiple CSV files into pandas dataframe
     '''
     runningList = []
     for aCsv in csvList:
@@ -48,12 +47,5 @@ def readDataFromCsvList(csvList = None):
     return df
 
 if __name__ == "__main__":
-    # Path to data for Resilient Smart Grid DDDAS (UMiami)
-    pathToData = 'C:\\Users\\rdeng\\Documents\\dev\\rsg-database\\data\\Homestead\\2007'
-    aCsv = 'FAWN_report.csv'
-
-    aCsvFile = ospath.join(pathToData, aCsv)
-    df = readDataFromCsvToDf(aCsvFile)
-
-    if df is not None:
-        print df.keys()
+    # TODO 
+    print 'todo'
