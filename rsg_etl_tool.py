@@ -284,13 +284,13 @@ class RsgEtlApp(QtWidgets.QMainWindow, rsg_etl_tool_ui.Ui_MainWindow):
 
         
 
-def start(pathToData=None):
+def start(rpnKnownTablesCsv, pathToData=None):
     '''
         Starts the application execution loop
         TODO fully implement pathToData
     '''
     app = QtWidgets.QApplication(sys.argv)
-    form = RsgEtlApp(pathToData)
+    form = RsgEtlApp(rpnKnownTablesCsv, pathToData)
     form.show()
     app.exec_()
 

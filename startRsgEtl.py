@@ -20,13 +20,13 @@
 # or consequential damages arising out of, or in connection with, the use of this 
 # software. USE AT YOUR OWN RISK.
 #
-# Last Modified: 2020 0210 1750
-import sys
+# Last Modified: 2020 0212 1515
+import os, sys
 
 import extracter 
 import rsg_etl_tool
 
-def startRsgEtl(pathToData=None):
+def startRsgEtl(rpnKnownTablesCsv, pathToData=None):
     '''
         Starting point for Resilient Sensor Grid Extract, Transform, and Load tool
     '''
@@ -43,10 +43,11 @@ def startRsgEtl(pathToData=None):
         print result.info()
     else:
         print 'startRsgEtl(): Starting GUI'
-        rsg_etl_tool.start(pathToData)
+        rsg_etl_tool.start(rpnKnownTablesCsv, pathToData)
 
 if __name__ == "__main__":
     pathToData = 'C:\\Users\\rdeng\\Documents\\dev\\rsg-database\\data\\Homestead\\2007'
-    startRsgEtl(pathToData)
+    rpnKnownTablesCsv = os.path.join('mysql', 'knownTables.csv')
+    startRsgEtl(rpnKnownTablesCsv, pathToData)
 
     
