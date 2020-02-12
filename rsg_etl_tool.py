@@ -20,7 +20,7 @@
 # or consequential damages arising out of, or in connection with, the use of this 
 # software. USE AT YOUR OWN RISK.
 #
-__version__ = '2020 0210 2211 Eastern'
+__version__ = '2020 0212 1453 Eastern'
 ###############################################################################
 from PyQt5 import QtGui, QtCore, QtWidgets
 from PyQt5.QtCore import pyqtSignal
@@ -29,11 +29,19 @@ import os, sys
 import rsg_etl_tool_ui
 
 import findData
+import readCsvIntoList
 
 import ThreadGetCsvHeader
 
 class RsgEtlApp(QtWidgets.QMainWindow, rsg_etl_tool_ui.Ui_MainWindow):
-    def __init__(self, pathToData=None):
+    '''
+        Implements the RSG ETL Tool GUI
+
+        rpnKnownTablesCsv: relative path name (rpn) to the file containing the known tables CSV
+
+        fqpnToData: fully qualified path name to a folder containing CSVs for ETL
+    '''
+    def __init__(self, rpnKnownTablesCsv, fqpnToData=None ):
         # Enable access to variables and methods in rsg_etl_tool_ui.py
         super(self.__class__, self).__init__()
 
@@ -42,15 +50,18 @@ class RsgEtlApp(QtWidgets.QMainWindow, rsg_etl_tool_ui.Ui_MainWindow):
 
         # Signals and slots (http://pyqt.sourceforge.net/Docs/PyQt5/signals_slots.html)
         # Signals are connected to slots using connect(slotName)
-        # File menu - Slots
-        # Example
-        # self.open_folder.triggered.connect(self.slotOpenFolder)
         
         # Frame Top Frame - Buttons (slots)
         self.butOpenFolder.clicked.connect(self.slotButOpenFolderClicked)
 
-        # Frame Top Frame
+        # Frame Top Frame - Lists (slots)
         self.lstFilesInFolder.clicked.connect(self.slotLstFilesInFolderClicked)
+
+        # Frame Bottom Frame - Lists
+        # Known Tables
+        self.rpnKnownTablesCsv = rpnKnownTablesCsv
+        self.assertRpnKnownTablesCsv()
+        
 
         # Set initial GUI state
         # Disable buttons
@@ -61,13 +72,29 @@ class RsgEtlApp(QtWidgets.QMainWindow, rsg_etl_tool_ui.Ui_MainWindow):
         self.pbProgressBar.setValue(0)
 
         # Data Folder
-        self.dataFolder = pathToData 
+        self.dataFolder = fqpnToData 
         self.initDataFolder()
         
         # Other variables
         self.fqpnFileList = []
 
 ###############################################################################
+
+    def assertRpnKnownTablesCsv(self):
+        '''
+        '''
+        errMsg = 'ERROR: assertRpnKnownTablesCsv(): Invalid known tables file: '
+        errMsg += str(self.rpnKnownTablesCsv)
+        errMsg += '\nExiting...'
+
+        if self.rpnKnownTablesCsv is None:
+            print errMsg
+            exit()
+        if not os.path.isfile(self.rpnKnownTablesCsv):
+            print errMsg
+            exit()
+        self.loadKnownTablesCsvIntoList()
+
 
     def checkState(self):
         '''
@@ -82,6 +109,8 @@ class RsgEtlApp(QtWidgets.QMainWindow, rsg_etl_tool_ui.Ui_MainWindow):
         '''
         msg = 'TODO: checkStatePopulate(): Check:\n1. A dataFolder is selected, \n2. one or more files are selected, \n3. and a table is selected'
         print msg
+
+
 
     def getFolder(self, previousFolder=None):
         '''
@@ -142,11 +171,28 @@ class RsgEtlApp(QtWidgets.QMainWindow, rsg_etl_tool_ui.Ui_MainWindow):
 
     def loadFilesIntoList(self):
         '''
-            Uses self.dataFolder as folder to 
+            Uses self.dataFolder as folder to load Files Into List
         '''
         self.fqpnFileList = findData.findData(self.dataFolder)
         self.updateLstFilesInFolder()
 
+    def loadKnownTablesCsvIntoList(self):
+        ''' 
+            Load tables names from csv file to tables in DB list
+        '''
+        # Read csv into a python list
+        self.tableNames = readCsvIntoList.readCsvIntoList(self.rpnKnownTablesCsv)
+        # Munge table names to MySQL
+        if self.tableNames is not None:
+            # TODO validate
+            pass
+            
+        else:
+            errMsg = 'ERROR: loadKnownTablesCsvIntoList(): Error loading Table Names in ' 
+            errMsg += self.rpnKnownTablesCsv
+            exit()
+        # Put data from csv into rsg-etl-tool gui list
+        self.updateLstTablesInDb()
 
     def slotButOpenFolderClicked(self):
         '''
@@ -219,6 +265,15 @@ class RsgEtlApp(QtWidgets.QMainWindow, rsg_etl_tool_ui.Ui_MainWindow):
             self.lstColumnsInSelectedFile.addItem(col)
 
 
+    def updateLstTablesInDb(self):
+        '''
+            Updates lstTablesInDb 
+        '''
+        self.lstTablesInDb.clear()
+        self.tableNames.sort()
+        for tableName in self.tableNames:
+            self.lstTablesInDb.addItem(tableName)
+
     def updateLstFilesInFolder(self):
         '''
             Updates lstFilesInFolder using fqpn data from self.fileList
@@ -240,6 +295,8 @@ def start(pathToData=None):
     app.exec_()
 
 if __name__ == "__main__":
-    pathToData = 'C:\\Users\\rdeng\\OneDrive\\01 AFIT\\Projects\\01 DDDAS\\UMiami_Data\\Fort Lauderdale\\2007'
-    start(pathToData)
-    #start()
+    fqpnToData = 'C:\\Users\\rdeng\\OneDrive\\01 AFIT\\Projects\\01 DDDAS\\UMiami_Data\\Fort Lauderdale\\2007'
+    rpnKnownTablesCsv = os.path.join('mysql', 'knownTables.csv')
+    #rpnKnownTablesCsv = None
+    #start(rpnKnownTablesCsv, fqpnToData)
+    start(rpnKnownTablesCsv)
