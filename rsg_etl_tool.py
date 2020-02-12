@@ -20,7 +20,7 @@
 # or consequential damages arising out of, or in connection with, the use of this 
 # software. USE AT YOUR OWN RISK.
 #
-__version__ = '2020 0212 1453 Eastern'
+__version__ = '2020 0212 1652 Eastern'
 ###############################################################################
 from PyQt5 import QtGui, QtCore, QtWidgets
 from PyQt5.QtCore import pyqtSignal
@@ -32,6 +32,7 @@ import findData
 import readCsvIntoList
 
 import ThreadGetCsvHeader
+import ThreadExtract
 
 class RsgEtlApp(QtWidgets.QMainWindow, rsg_etl_tool_ui.Ui_MainWindow):
     '''
@@ -61,6 +62,9 @@ class RsgEtlApp(QtWidgets.QMainWindow, rsg_etl_tool_ui.Ui_MainWindow):
         # Known Tables
         self.rpnKnownTablesCsv = rpnKnownTablesCsv
         self.assertRpnKnownTablesCsv()
+
+        # Frame Bottom Frame - Buttons
+        self.butPopulate.clicked.connect(self.slotButPopulateClicked)
         
 
         # Set initial GUI state
@@ -74,9 +78,11 @@ class RsgEtlApp(QtWidgets.QMainWindow, rsg_etl_tool_ui.Ui_MainWindow):
         # Data Folder
         self.dataFolder = fqpnToData 
         self.initDataFolder()
-        
+
         # Other variables
-        self.fqpnFileList = []
+        if self.dataFolder is None:
+            self.fqpnFileList = []
+
 
 ###############################################################################
 
@@ -96,20 +102,39 @@ class RsgEtlApp(QtWidgets.QMainWindow, rsg_etl_tool_ui.Ui_MainWindow):
         self.loadKnownTablesCsvIntoList()
 
 
-    def checkState(self):
+    def checkState(self, isDataFolderSet=False):
         '''
             Checks various GUI states and updates functionality accordingly
             TODO
         '''
-        self.checkStatePopulate()
+        self.checkStatePopulate(isDataFolderSet)
 
-    def checkStatePopulate(self):
+    def checkStatePopulate(self, isDataFolderSet=False):
         '''
             Checks whether Populate button should be enabled
         '''
-        msg = 'TODO: checkStatePopulate(): Check:\n1. A dataFolder is selected, \n2. one or more files are selected, \n3. and a table is selected'
+        msg = 'TODO: checkStatePopulate(): Check:\n1. A dataFolder is selected,'
+        msg += '\n2. one or more files are selected,'
+        msg += '\n3. and a table is selected'
         print msg
 
+        if isDataFolderSet is True:
+            self.butPopulate.setEnabled(True)
+        
+    def extractDataFromCsvToDf(self):
+        '''
+            Extracts data from CSVs and loads into a pandas dataframe
+        '''
+        # Just do all csvs for now
+                
+        # define and start a thread to open csv and get the header
+        self.extractThread = ThreadExtract.ExtractThread(self.fqpnFileList)
+        # connect the signals to slots
+        self.extractThread.signalExtractedData.connect(self.slotUpdateExtractedData)
+        self.extractThread.signalProgress.connect(self.slotUpdatePbProgressBar)
+        self.extractThread.signalStatusMsg.connect(self.slotStatusMessage)
+        # Start
+        self.extractThread.start()
 
 
     def getFolder(self, previousFolder=None):
@@ -158,7 +183,7 @@ class RsgEtlApp(QtWidgets.QMainWindow, rsg_etl_tool_ui.Ui_MainWindow):
                 print 'initDataFolder(): Initializing with folder ' + self.dataFolder
                 self.lblSelectedDataFolder.setText(self.dataFolder)
                 self.loadFilesIntoList()
-                self.checkState()
+                self.checkState(isDataFolderSet=True)
             else:
                 msg = 'WARNING initDataFolder(): Command line-specified data folder was invalid. '
                 msg += 'Click Open Folder to specify a valid folder.'
@@ -204,12 +229,26 @@ class RsgEtlApp(QtWidgets.QMainWindow, rsg_etl_tool_ui.Ui_MainWindow):
             return
 
         # Update GUI
-        self.checkState() # TODO
         self.dataFolder = folder
         self.lblSelectedDataFolder.setText(self.dataFolder)
         # Fill list with files & update gui list
         # Needs more error checking
         self.loadFilesIntoList()
+
+        self.checkState(isDataFolderSet=True)
+
+
+    def slotButPopulateClicked(self):
+        '''
+            Implements Populate Button Clicked
+        '''
+        # Extract data from CSV to df
+        self.extractDataFromCsvToDf()
+        # Tranform data in df
+        #self.transformDataInDf()
+        # Load data into DB
+        #self.loadDataToDb()
+        return
 
     def slotInvalidFile(self, fileName, errorMsg):
         '''# TODO'''
@@ -264,6 +303,9 @@ class RsgEtlApp(QtWidgets.QMainWindow, rsg_etl_tool_ui.Ui_MainWindow):
         for col in header:
             self.lstColumnsInSelectedFile.addItem(col)
 
+    def slotUpdateExtractedData(self, df):
+        self.extractedDataDf = df
+        print self.extractedDataDf
 
     def updateLstTablesInDb(self):
         '''
