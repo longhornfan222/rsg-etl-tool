@@ -47,6 +47,9 @@ class RsgEtlApp(QtWidgets.QMainWindow, rsg_etl_tool_ui.Ui_MainWindow):
         # Frame Top Frame - Buttons (slots)
         self.butOpenFolder.clicked.connect(self.slotButOpenFolderClicked)
 
+        # Frame Top Frame
+        self.lstFilesInFolder.clicked.connect(self.slotLstFilesInFolderClicked)
+
         # Set initial GUI state
         # Disable buttons
         self.butNewTable.setEnabled(False)
@@ -55,9 +58,13 @@ class RsgEtlApp(QtWidgets.QMainWindow, rsg_etl_tool_ui.Ui_MainWindow):
         self.pbProgressBar.setMaximum(1)
         self.pbProgressBar.setValue(0)
 
+        # Data Folder
+        self.dataFolder = pathToData 
+        self.initDataFolder()
+        
         # Other variables
-        self.dataFolder = pathToData # Not fully implemented
         self.fqpnFileList = []
+
 ###############################################################################
 
     def checkState(self):
@@ -71,7 +78,7 @@ class RsgEtlApp(QtWidgets.QMainWindow, rsg_etl_tool_ui.Ui_MainWindow):
         '''
             Checks whether Populate button should be enabled
         '''
-        msg = 'Check 1. A dataFolder is selected, \n2. one or more files are selected, \n3. and a table is selected'
+        msg = 'TODO: checkStatePopulate(): Check:\n1. A dataFolder is selected, \n2. one or more files are selected, \n3. and a table is selected'
         print msg
 
     def getFolder(self, previousFolder=None):
@@ -101,6 +108,39 @@ class RsgEtlApp(QtWidgets.QMainWindow, rsg_etl_tool_ui.Ui_MainWindow):
         
         return folder    
 
+    def initDataFolder(self):
+        '''
+            Initializes data folder if specified at command line during class creation
+        '''
+        lblMsg = 'Please select a folder to open'
+        if self.dataFolder is not None:            
+            msg = 'initDataFolder(): Attempting to use command line-specified folder: '
+            msg += str(self.dataFolder) 
+            print msg
+            # Verify data folder is a valid folder
+            if os.path.isdir(self.dataFolder):
+                print 'initDataFolder(): Initializing with folder ' + self.dataFolder
+                self.lblSelectedDataFolder.setText(self.dataFolder)
+                self.loadFilesIntoList()
+                self.checkState()
+            else:
+                msg = 'WARNING initDataFolder(): Command line-specified data folder was invalid. '
+                msg += 'Click Open Folder to specify a valid folder.'
+                print msg
+                self.dataFolder = None
+                self.lblSelectedDataFolder.setText(lblMsg)
+        else:
+            self.lblSelectedDataFolder.setText(lblMsg)
+
+
+    def loadFilesIntoList(self):
+        '''
+            Uses self.dataFolder as folder to 
+        '''
+        self.fqpnFileList = findData.findData(self.dataFolder)
+        self.updateLstFilesInFolder()
+
+
     def slotButOpenFolderClicked(self):
         '''
             Slot to handle Open Folder button click
@@ -116,8 +156,16 @@ class RsgEtlApp(QtWidgets.QMainWindow, rsg_etl_tool_ui.Ui_MainWindow):
         self.lblSelectedDataFolder.setText(self.dataFolder)
         # Fill list with files & update gui list
         # Needs more error checking
-        self.fqpnFileList = findData.findData(self.dataFolder)
-        self.updateLstFilesInFolder()
+        self.loadFilesIntoList()
+
+
+    def slotLstFilesInFolderClicked(self,item):
+        '''
+            Slot to handle single click in lstFilesinFolder
+        '''
+        return
+
+
 
 
     def updateLstFilesInFolder(self):
@@ -130,9 +178,6 @@ class RsgEtlApp(QtWidgets.QMainWindow, rsg_etl_tool_ui.Ui_MainWindow):
 
         
 
-
-
-
 def start(pathToData=None):
     '''
         Starts the application execution loop
@@ -144,4 +189,6 @@ def start(pathToData=None):
     app.exec_()
 
 if __name__ == "__main__":
-    start()
+    pathToData = 'C:\\Users\\rdeng\\OneDrive\\01 AFIT\\Projects\\01 DDDAS\\UMiami_Data\\Fort Lauderdale\\2007'
+    start(pathToData)
+    #start()
