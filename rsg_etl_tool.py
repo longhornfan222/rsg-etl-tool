@@ -30,6 +30,8 @@ import rsg_etl_tool_ui
 
 import findData
 
+import ThreadGetCsvHeader
+
 class RsgEtlApp(QtWidgets.QMainWindow, rsg_etl_tool_ui.Ui_MainWindow):
     def __init__(self, pathToData=None):
         # Enable access to variables and methods in rsg_etl_tool_ui.py
@@ -108,6 +110,11 @@ class RsgEtlApp(QtWidgets.QMainWindow, rsg_etl_tool_ui.Ui_MainWindow):
         
         return folder    
 
+    def getFqpnFromListItem(self, item):
+        fqpn = os.path.join(self.lblSelectedDataFolder.text(), item.data())
+        return fqpn
+
+
     def initDataFolder(self):
         '''
             Initializes data folder if specified at command line during class creation
@@ -158,14 +165,58 @@ class RsgEtlApp(QtWidgets.QMainWindow, rsg_etl_tool_ui.Ui_MainWindow):
         # Needs more error checking
         self.loadFilesIntoList()
 
+    def slotInvalidFile(self, fileName, errorMsg):
+        '''# TODO'''
+        print 'slotInvalidFile(): ' + fileName + ' ' + errorMsg
+        return
+
+    def slotInvalidHeader(self, errorMsg):
+        '''# TODO'''
+        print 'slotInvalidHeader(): '  + errorMsg
+        return
 
     def slotLstFilesInFolderClicked(self,item):
         '''
             Slot to handle single click in lstFilesinFolder
+            Populates columns in selected file list
+            Creates a thread to open the selected file
         '''
+        
+        fqpn = self.getFqpnFromListItem(item)
+        
+        # define and start a thread to open csv and get the header
+        self.getCsvHeaderThread = ThreadGetCsvHeader.GetCsvHeaderThread(fqpn)
+        # connect the signals to slots
+        self.getCsvHeaderThread.signalHeaderAsList.connect(self.slotUpdateColumnsInSelectedFileList)
+        self.getCsvHeaderThread.signalInvalidFile.connect(self.slotInvalidFile)
+        self.getCsvHeaderThread.signalInvalidHeader.connect(self.slotInvalidHeader)
+        self.getCsvHeaderThread.signalProgress.connect(self.slotUpdatePbProgressBar)
+        self.getCsvHeaderThread.signalStatusMsg.connect(self.slotStatusMessage)
+        self.getCsvHeaderThread.start()
+
         return
 
+    def slotStatusMessage(self, entityAsString, message):
+        '''
+            Enables threads to pass status messages for printing, etc.
+        '''
+        print entityAsString + ' ' +  message
 
+    def slotUpdatePbProgressBar(self, progressAmount=0, maximumAmount=0):
+        '''
+            updates progress bar
+        '''
+        self.pbProgressBar.setMaximum(maximumAmount)
+        self.pbProgressBar.setValue(progressAmount)
+
+    def slotUpdateColumnsInSelectedFileList(self, header):
+        '''
+            Updates columns in selected file list list :) with data from header
+        '''
+        # Clear list
+        self.lstColumnsInSelectedFile.clear()
+        for col in header:
+            self.lstColumnsInSelectedFile.addItem(col)
 
 
     def updateLstFilesInFolder(self):

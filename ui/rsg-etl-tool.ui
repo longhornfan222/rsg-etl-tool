@@ -130,33 +130,7 @@
              </widget>
             </item>
             <item>
-             <widget class="QListWidget" name="lstColumnsInSelectedFile">
-              <item>
-               <property name="text">
-                <string>FAWN Station</string>
-               </property>
-              </item>
-              <item>
-               <property name="text">
-                <string>Observation Time</string>
-               </property>
-              </item>
-              <item>
-               <property name="text">
-                <string>60cm T air (F)</string>
-               </property>
-              </item>
-              <item>
-               <property name="text">
-                <string>2m T air (F)</string>
-               </property>
-              </item>
-              <item>
-               <property name="text">
-                <string>...</string>
-               </property>
-              </item>
-             </widget>
+             <widget class="QListWidget" name="lstColumnsInSelectedFile"/>
             </item>
            </layout>
           </widget>
