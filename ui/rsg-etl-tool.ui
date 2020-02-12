@@ -96,26 +96,6 @@
                 <height>200</height>
                </size>
               </property>
-              <item>
-               <property name="text">
-                <string>List of Files</string>
-               </property>
-              </item>
-              <item>
-               <property name="text">
-                <string>...</string>
-               </property>
-              </item>
-              <item>
-               <property name="text">
-                <string>FAWN_Report.csv</string>
-               </property>
-              </item>
-              <item>
-               <property name="text">
-                <string>FAWN_Report (4).csv</string>
-               </property>
-              </item>
              </widget>
             </item>
            </layout>
