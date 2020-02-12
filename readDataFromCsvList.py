@@ -20,13 +20,13 @@
 # or consequential damages arising out of, or in connection with, the use of this 
 # software. USE AT YOUR OWN RISK.
 #
-# Last Modified: 2020 0209 1430
+# Last Modified: 2020 0212 1558
 
 import pandas as pd
 import sys
 import os.path as ospath
 
-import readDataFromACsv
+import readDataFromCsvToDf
 
 def readDataFromCsvList(csvList = None):
     '''
@@ -34,7 +34,7 @@ def readDataFromCsvList(csvList = None):
     '''
     runningList = []
     for aCsv in csvList:
-        runningList.append(readDataFromACsv.readDataFromACsv(aCsv))
+        runningList.append(readDataFromCsvToDf.readDataFromCsvToDf(aCsv))
     
     df = None
     try:
@@ -53,7 +53,7 @@ if __name__ == "__main__":
     aCsv = 'FAWN_report.csv'
 
     aCsvFile = ospath.join(pathToData, aCsv)
-    df = readDataFromACsv(aCsvFile)
+    df = readDataFromCsvToDf(aCsvFile)
 
     if df is not None:
         print df.keys()
