@@ -20,7 +20,7 @@
 # or consequential damages arising out of, or in connection with, the use of this 
 # software. USE AT YOUR OWN RISK.
 #
-# __version__ = '2020 0213 1134'
+# __version__ = '2020 0213 1142'
 ###############################################################################
 from PyQt5 import QtGui, QtCore, QtWidgets
 from PyQt5.QtCore import pyqtSignal
@@ -223,6 +223,8 @@ class RsgEtlApp(QtWidgets.QMainWindow, rsg_etl_tool_ui.Ui_MainWindow):
         '''' 
         Implements Load process of ETL
         '''
+
+
         self.checkState(isDataFolderSet=True, isPerformingEtl=False)
 
     def loadFilesIntoList(self):
@@ -368,7 +370,6 @@ class RsgEtlApp(QtWidgets.QMainWindow, rsg_etl_tool_ui.Ui_MainWindow):
         self.tranformThread.signalStatusMsg.connect(self.slotStatusMessage)
         # Start
         self.tranformThread.start()
-        return
 
     def updateLstTablesInDb(self):
         '''
