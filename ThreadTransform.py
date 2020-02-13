@@ -20,18 +20,14 @@
 # or consequential damages arising out of, or in connection with, the use of this 
 # software. USE AT YOUR OWN RISK.
 #
-__version__ = '2020 0213 1120'
+__version__ = '2020 0213 1151'
 ###############################################################################
-
 
 from PyQt5.QtCore import QThread, pyqtSignal
 import os, sys
-import csv
 
-import datetime, calendar
+import datetime
 import pandas
-
-import readDataFromCsvToDf
 
 class TransformThread(QThread):
     '''
