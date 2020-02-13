@@ -20,7 +20,7 @@
 # or consequential damages arising out of, or in connection with, the use of this 
 # software. USE AT YOUR OWN RISK.
 #
-__version__ = '2020 0212 1652 Eastern'
+__version__ = '2020 0213 1122 Eastern'
 ###############################################################################
 from PyQt5 import QtGui, QtCore, QtWidgets
 from PyQt5.QtCore import pyqtSignal
@@ -33,6 +33,8 @@ import readCsvIntoList
 
 import ThreadGetCsvHeader
 import ThreadExtract
+import ThreadTransform
+import ThreadLoad
 
 class RsgEtlApp(QtWidgets.QMainWindow, rsg_etl_tool_ui.Ui_MainWindow):
     '''
@@ -102,24 +104,43 @@ class RsgEtlApp(QtWidgets.QMainWindow, rsg_etl_tool_ui.Ui_MainWindow):
         self.loadKnownTablesCsvIntoList()
 
 
-    def checkState(self, isDataFolderSet=False):
+    def checkState(self, isDataFolderSet=False, isPerformingEtl=False):
         '''
             Checks various GUI states and updates functionality accordingly
-            TODO
         '''
-        self.checkStatePopulate(isDataFolderSet)
+        self.checkStateNewTable(isPerformingEtl)
+        self.checkStateOpenFolder(isPerformingEtl)
+        self.checkStatePopulate(isDataFolderSet, isPerformingEtl)
+        
+    def checkStateNewTable(self, isPerformingEtl=False):
+        ''' 
+        TODO implement else
+        '''
+        if isPerformingEtl is True:
+            self.butNewTable.setEnabled(False)
+        
 
-    def checkStatePopulate(self, isDataFolderSet=False):
+    def checkStateOpenFolder(self, isPerformingEtl=False):
+        if isPerformingEtl is True:
+            self.butOpenFolder.setEnabled(False)
+        else:
+            self.butOpenFolder.setEnabled(True)
+
+    def checkStatePopulate(self, isDataFolderSet=False, isPerformingEtl=False):
         '''
             Checks whether Populate button should be enabled
         '''
-        msg = 'TODO: checkStatePopulate(): Check:\n1. A dataFolder is selected,'
-        msg += '\n2. one or more files are selected,'
-        msg += '\n3. and a table is selected'
+        msg = 'checkStatePopulate(): Check:\n'
+        msg += '1. A dataFolder is selected, (Done)\n'
+        msg += '2. One or more files are selected *** TODO (Just do them all otherwise)\n'
+        msg += '3. A table is selected *** TODO\n'
+        msg += '4. ETL is not occuring (Done)\n'
         print msg
 
-        if isDataFolderSet is True:
+        if isDataFolderSet is True and isPerformingEtl is False:
             self.butPopulate.setEnabled(True)
+        else:
+            self.butPopulate.setEnabled(False)
         
     def extractDataFromCsvToDf(self):
         '''
@@ -165,6 +186,11 @@ class RsgEtlApp(QtWidgets.QMainWindow, rsg_etl_tool_ui.Ui_MainWindow):
         return folder    
 
     def getFqpnFromListItem(self, item):
+        '''
+        Combines label and item to produce fqpn
+
+        Returns fqpn
+        '''
         fqpn = os.path.join(self.lblSelectedDataFolder.text(), item.data())
         return fqpn
 
@@ -193,6 +219,11 @@ class RsgEtlApp(QtWidgets.QMainWindow, rsg_etl_tool_ui.Ui_MainWindow):
         else:
             self.lblSelectedDataFolder.setText(lblMsg)
 
+    def loadDfInDatabase(self):
+        '''' 
+        Implements Load process of ETL
+        '''
+        self.checkState(isDataFolderSet=True, isPerformingEtl=False)
 
     def loadFilesIntoList(self):
         '''
@@ -232,7 +263,7 @@ class RsgEtlApp(QtWidgets.QMainWindow, rsg_etl_tool_ui.Ui_MainWindow):
         self.dataFolder = folder
         self.lblSelectedDataFolder.setText(self.dataFolder)
         # Fill list with files & update gui list
-        # Needs more error checking
+        # TODO Needs more error checking
         self.loadFilesIntoList()
 
         self.checkState(isDataFolderSet=True)
@@ -244,11 +275,8 @@ class RsgEtlApp(QtWidgets.QMainWindow, rsg_etl_tool_ui.Ui_MainWindow):
         '''
         # Extract data from CSV to df
         self.extractDataFromCsvToDf()
-        # Tranform data in df
-        #self.transformDataInDf()
-        # Load data into DB
-        #self.loadDataToDb()
-        return
+        self.checkState(isPerformingEtl=True)
+        # everything following is asynchronous..
 
     def slotInvalidFile(self, fileName, errorMsg):
         '''# TODO'''
@@ -286,6 +314,16 @@ class RsgEtlApp(QtWidgets.QMainWindow, rsg_etl_tool_ui.Ui_MainWindow):
             Enables threads to pass status messages for printing, etc.
         '''
         print entityAsString + ' ' +  message
+    
+
+    def slotTransformComplete(self, df):
+        '''
+        Implements transform is complete
+
+        Initiates Load
+        '''
+        self.transformedDf = df
+        self.loadDfInDatabase()
 
     def slotUpdatePbProgressBar(self, progressAmount=0, maximumAmount=0):
         '''
@@ -305,7 +343,30 @@ class RsgEtlApp(QtWidgets.QMainWindow, rsg_etl_tool_ui.Ui_MainWindow):
 
     def slotUpdateExtractedData(self, df):
         self.extractedDataDf = df
-        print self.extractedDataDf
+        #print self.extractedDataDf
+        # Think about second progress bar
+        if self.extractedDataDf is not None:
+            self.transformDataInDf()
+
+    def transformDataInDf(self):
+        '''
+            Transforms data in dataframe following extract process
+            
+            Rename columns
+
+            Separate Date and Time
+
+            Set missing data to Null
+        '''
+        # define and start a thread to open csv and get the header
+        self.tranformThread = ThreadTransform.TransformThread(self.extractedDataDf)
+        # connect the signals to slots
+        self.tranformThread.signalTransformComplete.connect(self.slotTransformComplete)
+        self.tranformThread.signalProgress.connect(self.slotUpdatePbProgressBar)
+        self.tranformThread.signalStatusMsg.connect(self.slotStatusMessage)
+        # Start
+        self.tranformThread.start()
+        return
 
     def updateLstTablesInDb(self):
         '''
