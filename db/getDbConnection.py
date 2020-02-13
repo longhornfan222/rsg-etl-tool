@@ -20,36 +20,49 @@
 # or consequential damages arising out of, or in connection with, the use of this 
 # software. USE AT YOUR OWN RISK.
 #
-# __version__ = '2020 0211 0800 Eastern'
+# __version__ = '2020 0213 1600'
 ###############################################################################
 import MySQLdb
 
-def getDbConnection(typeCursor):
-    
-    # initialize variables
-    use_local_database = True
-    cursor = []
-    status = False
+import dbConfig
+# dbconfig is not tracked by git
+import closeDbConnection # For testing
 
-    # connect to database
-    if use_local_database is True:
-        # Database Server
-        host = 'localhost'
-        # Database Username/Password
-        user = ''
-        password = ''
-        # Database Name
-        db_name = 'MQ'
-    # TODO else
+def getDbConnection(typeCursor='simple', useLocalDb=True, userToken=0, dbName='umiami', verbose=False):
+    '''
+    Tries to connect to a database
+        typeCursor: simple or dict type of cursor
+        useLocalDb: True if using local, false if not 
+        userToken: userId/token to identify the user name 
+        dbName: name of the database 
+
+    Returns
+        status: True on success
+        dbConnection: connection to the database
+        cursor: cursor object
+    '''
+    # Database Server
+    host = dbConfig.getHost(useLocal=useLocalDb)
+    # Database Username/Password
+    user = dbConfig.getUser(userToken=userToken)
+    pwd  = dbConfig.getSecurityCheck(user)
+    # Database Name
+    databaseName = dbConfig.getDatabaseName(dbName)
+
+    if verbose is True:
+        print host, user, pwd, databaseName
 
     # Create the database connection object and connect
-    dbConnection = MySQLdb.connect(host, user, password, db_name)
+    try:
+        dbConnection = MySQLdb.connect(host, user, pwd, databaseName)
+        if typeCursor == 'dict':
+            cursor = dbConnection.cursor(MySQLdb.cursors.DictCursor)
+        elif typeCursor == 'simple':
+            cursor = dbConnection.cursor()
+    except Exception as e:
+        print "ERROR: getDbConnection(): " + str(e)
+        return False, None, None
     
-    if typeCursor == 'dict':
-        cursor = dbConnection.cursor(MySQLdb.cursors.DictCursor)
-    elif typeCursor == 'simple':
-        cursor = dbConnection.cursor()
-
     try:
         cursor.execute("SELECT VERSION()")
         results = cursor.fetchone()
@@ -59,10 +72,15 @@ def getDbConnection(typeCursor):
         else:
             status = False
     except MySQLdb.Error, e:
-        print "ERROR: dbConnect() %d IN CONNECTION: %s" % (e.args[0], e.args[1])
+        status = False
+        print "ERROR: getDbConnection() %d IN CONNECTION: %s" % (e.args[0], e.args[1])
 
     return status, dbConnection, cursor
 
 if __name__ == "__main__":
-    print 'getDbConnection(): TODO implement testing'
-    return
+    status, dbConnection, cursor = getDbConnection(verbose=True)
+    print status, type(dbConnection), type(cursor)
+    if status is True:
+        closeDbConnection.closeDbConnection(cursor, dbConnection)
+        #closeDbConnection.closeDbConnection(None, None)
+    
