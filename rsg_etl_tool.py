@@ -20,7 +20,7 @@
 # or consequential damages arising out of, or in connection with, the use of this 
 # software. USE AT YOUR OWN RISK.
 #
-__version__ = '2020 0213 1122 Eastern'
+# __version__ = '2020 0213 1134'
 ###############################################################################
 from PyQt5 import QtGui, QtCore, QtWidgets
 from PyQt5.QtCore import pyqtSignal
@@ -151,7 +151,7 @@ class RsgEtlApp(QtWidgets.QMainWindow, rsg_etl_tool_ui.Ui_MainWindow):
         # define and start a thread to open csv and get the header
         self.extractThread = ThreadExtract.ExtractThread(self.fqpnFileList)
         # connect the signals to slots
-        self.extractThread.signalExtractedData.connect(self.slotUpdateExtractedData)
+        self.extractThread.signalExtractComplete.connect(self.slotExtractComplete)
         self.extractThread.signalProgress.connect(self.slotUpdatePbProgressBar)
         self.extractThread.signalStatusMsg.connect(self.slotStatusMessage)
         # Start
@@ -278,6 +278,17 @@ class RsgEtlApp(QtWidgets.QMainWindow, rsg_etl_tool_ui.Ui_MainWindow):
         self.checkState(isPerformingEtl=True)
         # everything following is asynchronous..
 
+    def slotExtractComplete(self, df):
+        '''
+        Implements end of Extract and initiates Transform
+        '''
+        self.extractedDataDf = df
+        #print self.extractedDataDf
+        # Think about second progress bar
+        if self.extractedDataDf is not None:
+            self.transformDataInDf()
+
+
     def slotInvalidFile(self, fileName, errorMsg):
         '''# TODO'''
         print 'slotInvalidFile(): ' + fileName + ' ' + errorMsg
@@ -318,9 +329,7 @@ class RsgEtlApp(QtWidgets.QMainWindow, rsg_etl_tool_ui.Ui_MainWindow):
 
     def slotTransformComplete(self, df):
         '''
-        Implements transform is complete
-
-        Initiates Load
+        Implements end of transform and initiates Load
         '''
         self.transformedDf = df
         self.loadDfInDatabase()
@@ -340,13 +349,6 @@ class RsgEtlApp(QtWidgets.QMainWindow, rsg_etl_tool_ui.Ui_MainWindow):
         self.lstColumnsInSelectedFile.clear()
         for col in header:
             self.lstColumnsInSelectedFile.addItem(col)
-
-    def slotUpdateExtractedData(self, df):
-        self.extractedDataDf = df
-        #print self.extractedDataDf
-        # Think about second progress bar
-        if self.extractedDataDf is not None:
-            self.transformDataInDf()
 
     def transformDataInDf(self):
         '''

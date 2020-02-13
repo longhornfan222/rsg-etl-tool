@@ -20,7 +20,7 @@
 # or consequential damages arising out of, or in connection with, the use of this 
 # software. USE AT YOUR OWN RISK.
 #
-__version__ = '2020 0212 1653'
+# __version__ = '2020 0213 1134'
 ###############################################################################
 
 from PyQt5.QtCore import QThread, pyqtSignal
@@ -53,7 +53,7 @@ class ExtractThread(QThread):
 
     # Signals
     # contains the extracted data in a data frame
-    signalExtractedData = pyqtSignal(pandas.DataFrame)
+    signalExtractComplete = pyqtSignal(pandas.DataFrame)
     # str1 is the fqpn to the invalid 'file'
     # str2 is the error message
     signalInvalidFile = pyqtSignal(str, str)    
@@ -87,7 +87,7 @@ class ExtractThread(QThread):
         self.signalProgress.emit(1,2)
         # 4. Return the data frame
         self.signalProgress.emit(2,2)
-        self.signalExtractedData.emit(df)
+        self.signalExtractComplete.emit(df)
 
 
     def readDataFromCsvList(self):
