@@ -20,7 +20,7 @@
 # or consequential damages arising out of, or in connection with, the use of this 
 # software. USE AT YOUR OWN RISK.
 #
-# __version__ = '2020 0213 1600'
+# __version__ = '2020 0213 2053'
 ###############################################################################
 import MySQLdb
 
@@ -61,6 +61,7 @@ def getDbConnection(typeCursor='simple', useLocalDb=True, userToken=0, dbName='u
             cursor = dbConnection.cursor()
     except Exception as e:
         print "ERROR: getDbConnection(): " + str(e)
+        # TODO Write log on failure
         return False, None, None
     
     try:
@@ -72,8 +73,8 @@ def getDbConnection(typeCursor='simple', useLocalDb=True, userToken=0, dbName='u
         else:
             status = False
     except MySQLdb.Error, e:
-        status = False
         print "ERROR: getDbConnection() %d IN CONNECTION: %s" % (e.args[0], e.args[1])
+        return False, None, None
 
     return status, dbConnection, cursor
 
