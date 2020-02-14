@@ -20,7 +20,7 @@
 # or consequential damages arising out of, or in connection with, the use of this 
 # software. USE AT YOUR OWN RISK.
 #
-# __version__ = '2020 0213 1142'
+# __version__ = '2020 0213 2054'
 ###############################################################################
 from PyQt5 import QtGui, QtCore, QtWidgets
 from PyQt5.QtCore import pyqtSignal
@@ -130,12 +130,13 @@ class RsgEtlApp(QtWidgets.QMainWindow, rsg_etl_tool_ui.Ui_MainWindow):
         '''
             Checks whether Populate button should be enabled
         '''
+        # TODO
         msg = 'checkStatePopulate(): Check:\n'
         msg += '1. A dataFolder is selected, (Done)\n'
         msg += '2. One or more files are selected *** TODO (Just do them all otherwise)\n'
         msg += '3. A table is selected *** TODO\n'
         msg += '4. ETL is not occuring (Done)\n'
-        print msg
+        #print msg
 
         if isDataFolderSet is True and isPerformingEtl is False:
             self.butPopulate.setEnabled(True)
@@ -223,9 +224,15 @@ class RsgEtlApp(QtWidgets.QMainWindow, rsg_etl_tool_ui.Ui_MainWindow):
         '''' 
         Implements Load process of ETL
         '''
-
-
-        self.checkState(isDataFolderSet=True, isPerformingEtl=False)
+        dbTableName = 'Generator'
+        # define and start a thread 
+        self.loadThread = ThreadLoad.LoadThread(self.transformedDf, dbTableName)
+        # connect the signals to slots
+        self.loadThread.signalLoadComplete.connect(self.slotLoadComplete)
+        self.loadThread.signalProgress.connect(self.slotUpdatePbProgressBar)
+        self.loadThread.signalStatusMsg.connect(self.slotStatusMessage)
+        # Start
+        self.loadThread.start()
 
     def loadFilesIntoList(self):
         '''
@@ -301,6 +308,13 @@ class RsgEtlApp(QtWidgets.QMainWindow, rsg_etl_tool_ui.Ui_MainWindow):
         print 'slotInvalidHeader(): '  + errorMsg
         return
 
+    def slotLoadComplete(self, status):
+        '''
+        Implements ETL end actions
+        '''
+        self.checkState(isDataFolderSet=True, isPerformingEtl=False)
+        
+
     def slotLstFilesInFolderClicked(self,item):
         '''
             Slot to handle single click in lstFilesinFolder
@@ -362,7 +376,7 @@ class RsgEtlApp(QtWidgets.QMainWindow, rsg_etl_tool_ui.Ui_MainWindow):
 
             Set missing data to Null
         '''
-        # define and start a thread to open csv and get the header
+        # define and start a thread 
         self.tranformThread = ThreadTransform.TransformThread(self.extractedDataDf)
         # connect the signals to slots
         self.tranformThread.signalTransformComplete.connect(self.slotTransformComplete)
