@@ -24,11 +24,80 @@
 ###############################################################################
 import MySQLdb
 
+import sqlalchemy
+
 import dbConfig
 # dbconfig is not tracked by git
 import closeDbConnection # For testing
 
-def getDbConnection(typeCursor='simple', useLocalDb=True, userToken=0, dbName='umiami', verbose=False):
+def getMysqlPackageConnection(host, user, pwd, databaseName):
+    '''
+    Uses MySQLdb package 
+    '''
+    try:
+        dbConnection = MySQLdb.connect(host, user, pwd, databaseName)
+        if typeCursor == 'dict':
+            cursor = dbConnection.cursor(MySQLdb.cursors.DictCursor)
+        elif typeCursor == 'simple':
+            cursor = dbConnection.cursor()
+    except Exception as e:
+        print "ERROR: getDbConnection(): " + str(e)
+        # TODO Write log on failure
+        return False, None, None
+    
+    try:
+        cursor.execute("SELECT VERSION()")
+        results = cursor.fetchone()
+        # Check if anything at all is returned
+        if results:
+            status = True
+        else:
+            status = False
+    except MySQLdb.Error, e:
+        print "ERROR: getDbConnection() %d IN CONNECTION: %s" % (e.args[0], e.args[1])
+        return False, None, None
+
+
+def getSqlalchemyConnection(user, pwd, host, database):
+    '''
+    Uses sqlalchemy package
+    
+    Password encoding
+    import urllib.parse
+    urllib.parse.quote_plus("kx%jj5/g")
+    'kx%25jj5%2Fg'
+
+    URL:
+    dialect+driver://username:password@host:port/database
+
+    # default
+    engine = create_engine('mysql://scott:tiger@localhost/foo')
+
+    # mysqlclient (a maintained fork of MySQL-Python)
+    engine = create_engine('mysql+mysqldb://scott:tiger@localhost/foo')
+
+    # PyMySQL
+    engine = create_engine('mysql+pymysql://scott:tiger@localhost/foo')
+    '''
+    # Build URL
+    url = 'mysql://' + user + ':' + pwd + '@' + host + '/' + database
+    print url
+
+    # Engine
+    engine = sqlalchemy.create_engine(url)
+
+    # Connection
+    try:
+        connection = engine.connect()
+        return True, connection
+    except Exception as e:
+        print str(e)
+        return False, None
+
+
+
+def getDbConnection(typeCursor='simple', useLocalDb=True, userToken=0, dbName='umiami', \
+    verbose=False, dbPackage='sqlalchemy'):
     '''
     Tries to connect to a database
         typeCursor: simple or dict type of cursor
@@ -53,28 +122,14 @@ def getDbConnection(typeCursor='simple', useLocalDb=True, userToken=0, dbName='u
         print host, user, pwd, databaseName
 
     # Create the database connection object and connect
-    try:
-        dbConnection = MySQLdb.connect(host, user, pwd, databaseName)
-        if typeCursor == 'dict':
-            cursor = dbConnection.cursor(MySQLdb.cursors.DictCursor)
-        elif typeCursor == 'simple':
-            cursor = dbConnection.cursor()
-    except Exception as e:
-        print "ERROR: getDbConnection(): " + str(e)
-        # TODO Write log on failure
-        return False, None, None
-    
-    try:
-        cursor.execute("SELECT VERSION()")
-        results = cursor.fetchone()
-        # Check if anything at all is returned
-        if results:
-            status = True
-        else:
-            status = False
-    except MySQLdb.Error, e:
-        print "ERROR: getDbConnection() %d IN CONNECTION: %s" % (e.args[0], e.args[1])
-        return False, None, None
+    status = False
+    dbConnection = None
+    cursor = None
+    if dbPackage == 'mysql':
+        status, dbConnection, cursor = getMysqlPackageConnection(host, user, pwd, databaseName)
+    elif dbPackage == 'sqlalchemy':
+        cursor = None
+        status, dbConnection = getSqlalchemyConnection(user, pwd, host, databaseName)
 
     return status, dbConnection, cursor
 

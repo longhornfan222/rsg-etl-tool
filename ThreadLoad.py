@@ -20,7 +20,7 @@
 # or consequential damages arising out of, or in connection with, the use of this 
 # software. USE AT YOUR OWN RISK.
 #
-__version__ = '2020 0213 2053'
+__version__ = '2020 0213 2208'
 ###############################################################################
 
 from PyQt5.QtCore import QThread, pyqtSignal
@@ -73,7 +73,7 @@ class LoadThread(QThread):
         '''
         # get connection
         if self.attemptDbConnection() is False:
-            self.signalLoadComplete(False)
+            self.signalLoadComplete.emit(False)
             return
         msg1 = 'LoadThread::run():'
         msg2 = 'Successfully connected to DB'
@@ -133,7 +133,9 @@ class LoadThread(QThread):
         self.signalStatusMsg.emit(msg1, msg2)
 
         try:
-            frame = self.df.to_sql(self.dbTableName, self.connection, if_exists='fail')
+            self.df.to_sql(self.dbTableName, self.connection, chunksize=10000, \
+                index=False, if_exists='append')
+            
         except ValueError as vx:
             print vx
             return False

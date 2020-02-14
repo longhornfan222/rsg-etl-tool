@@ -20,7 +20,7 @@
 # or consequential damages arising out of, or in connection with, the use of this 
 # software. USE AT YOUR OWN RISK.
 #
-# __version__ = '2020 0213 2053'
+# __version__ = '2020 0213 2123'
 ###############################################################################
 
 def closeDbConnection(cursor, dbConnection):
@@ -31,7 +31,8 @@ def closeDbConnection(cursor, dbConnection):
         dbConnection: connection to close
     '''
     try:
-        cursor.close()
+        if cursor is not None:
+            cursor.close()
         dbConnection.close()
     except Exception as e:
         print "ERROR: closeDbConnection(): " + str(e)
