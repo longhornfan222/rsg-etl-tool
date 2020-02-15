@@ -188,20 +188,35 @@
              </widget>
             </item>
             <item>
-             <widget class="QListWidget" name="lstAttributesInSelectedTable">
+             <widget class="QTableWidget" name="tableWidgetAttributesInSelectedTable">
               <property name="enabled">
                <bool>false</bool>
               </property>
-              <item>
+              <column>
                <property name="text">
-                <string>List of variables (attributes) in a selected table</string>
+                <string>Attribute Name</string>
                </property>
-              </item>
-              <item>
+              </column>
+              <column>
                <property name="text">
-                <string>(Work in Progress)</string>
+                <string>Data Type</string>
                </property>
-              </item>
+              </column>
+              <column>
+               <property name="text">
+                <string>Can Be Null</string>
+               </property>
+              </column>
+              <column>
+               <property name="text">
+                <string>Is Primary Key</string>
+               </property>
+              </column>
+              <column>
+               <property name="text">
+                <string>Default Value</string>
+               </property>
+              </column>
              </widget>
             </item>
            </layout>
@@ -241,7 +256,7 @@
      <x>0</x>
      <y>0</y>
      <width>1300</width>
-     <height>38</height>
+     <height>21</height>
     </rect>
    </property>
   </widget>
