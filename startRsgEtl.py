@@ -20,7 +20,7 @@
 # or consequential damages arising out of, or in connection with, the use of this 
 # software. USE AT YOUR OWN RISK.
 #
-# Last Modified: 2020 0212 1515
+# Last Modified: 2020 0215 1000
 import os, sys
 
 #import extracter 
@@ -48,7 +48,8 @@ def startRsgEtl(rpnKnownTablesCsv, pathToData=None):
         rsg_etl_tool.start(rpnKnownTablesCsv, pathToData)
 
 if __name__ == "__main__":
-    pathToData = 'C:\\Users\\rdeng\\Documents\\dev\\rsg-database\\data\\Homestead\\2007'
+    #pathToData = 'C:\\Users\\rdeng\\Documents\\dev\\rsg-database\\data\\Homestead\\2007'
+    pathToData = 'E:\\Documents\\dev\\rsg-etl-tool\\data\\Homestead\\2007'
     rpnKnownTablesCsv = os.path.join('mysql', 'knownTables.csv')
     startRsgEtl(rpnKnownTablesCsv, pathToData)
 

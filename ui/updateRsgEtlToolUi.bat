@@ -20,6 +20,9 @@
 :: or consequential damages arising out of, or in connection with, the use of this 
 :: software. USE AT YOUR OWN RISK.
 ::
-:: Last Modified: 2020 0210 1739
+:: Last Modified: 2020 0215 1001
 
+:: Engle laptop
 C:\Anaconda2\Library\bin\pyuic5.bat .\ui\rsg-etl-tool.ui -o .\rsg_etl_tool_ui.py
+:: Engle desktop ibp
+E:\Python\Anaconda2\Library\bin\pyuic5.bat .\ui\rsg-etl-tool.ui -o .\rsg_etl_tool_ui.py
