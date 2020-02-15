@@ -20,7 +20,7 @@
 # or consequential damages arising out of, or in connection with, the use of this 
 # software. USE AT YOUR OWN RISK.
 #
-# __version__ = '2020 0213 2053'
+# __version__ = '2020 0215 1148'
 ###############################################################################
 import MySQLdb
 
@@ -57,58 +57,68 @@ def getMysqlPackageConnection(host, user, pwd, databaseName):
         print "ERROR: getDbConnection() %d IN CONNECTION: %s" % (e.args[0], e.args[1])
         return False, None, None
 
+def buildSqlAlchemyEngineUrl(user, pwd, host, databaseName, driver='mysql'):
+    '''
+    #Password encoding
+    #import urllib.parse
+    #urllib.parse.quote_plus("kx%jj5/g")
+    #'kx%25jj5%2Fg'
+    #URL:
+    #dialect+driver://username:password@host:port/database
+    # default
+    #engine = create_engine('mysql://scott:tiger@localhost/foo')
+    # mysqlclient (a maintained fork of MySQL-Python)
+    #engine = create_engine('mysql+mysqldb://scott:tiger@localhost/foo')
+    # PyMySQL
+    #engine = create_engine('mysql+pymysql://scott:tiger@localhost/foo')
 
-def getSqlalchemyConnection(user, pwd, host, database):
+    Compare to getTableMetadata.getEngine()
+    '''
+    # Build URL
+    url = driver + '://' + user + ':' + pwd + '@' + host + '/' + databaseName
+    print 'buildSqlAlchemyEngineUrl(): URL: ' + url
+    return url
+
+
+def getSqlalchemyEngine(url, showEcho=False):
+    '''
+    Returns sqlalchemy engine on success or None
+    '''
+     # Engine
+    engine = sqlalchemy.create_engine(url, echo=showEcho)
+    return engine
+
+
+def getSqlalchemyConnection(user, pwd, host, databaseName, showEcho=False):
     '''
     Uses sqlalchemy package
     
-    Password encoding
-    import urllib.parse
-    urllib.parse.quote_plus("kx%jj5/g")
-    'kx%25jj5%2Fg'
-
-    URL:
-    dialect+driver://username:password@host:port/database
-
-    # default
-    engine = create_engine('mysql://scott:tiger@localhost/foo')
-
-    # mysqlclient (a maintained fork of MySQL-Python)
-    engine = create_engine('mysql+mysqldb://scott:tiger@localhost/foo')
-
-    # PyMySQL
-    engine = create_engine('mysql+pymysql://scott:tiger@localhost/foo')
+    Returns
+    status, connection, engine
     '''
-    # Build URL
-    url = 'mysql://' + user + ':' + pwd + '@' + host + '/' + database
-    print url
-
-    # Engine
-    engine = sqlalchemy.create_engine(url)
+    url = buildSqlAlchemyEngineUrl(user, pwd, host, databaseName)
+    engine = getSqlalchemyEngine(url)
 
     # Connection
+    status = False
     try:
         connection = engine.connect()
-        return True, connection
+        status = True
+        return status, connection, engine
     except Exception as e:
         print str(e)
-        return False, None
+        return status, None, None
 
-
-
-def getDbConnection(typeCursor='simple', useLocalDb=True, userToken=0, dbName='umiami', \
-    verbose=False, dbPackage='sqlalchemy'):
+def getDbConnectionParams(useLocalDb=True, userToken=0, dbName='umiami'):
     '''
-    Tries to connect to a database
-        typeCursor: simple or dict type of cursor
-        useLocalDb: True if using local, false if not 
-        userToken: userId/token to identify the user name 
-        dbName: name of the database 
+    Gets connection parameters from dbConfig
+    
+    useLocalDb: True if using local, false if not 
+    userToken: userId/token to identify the user name 
+    dbName: name of the database
 
     Returns
-        status: True on success
-        dbConnection: connection to the database
-        cursor: cursor object
+    hostname, userid, password, databaseName
     '''
     # Database Server
     host = dbConfig.getHost(useLocal=useLocalDb)
@@ -117,6 +127,28 @@ def getDbConnection(typeCursor='simple', useLocalDb=True, userToken=0, dbName='u
     pwd  = dbConfig.getSecurityCheck(user)
     # Database Name
     databaseName = dbConfig.getDatabaseName(dbName)
+           
+    return host, user, pwd, databaseName
+
+def getDbConnection(typeCursor='simple', useLocalDb=True, userToken=0, dbName='umiami', \
+    verbose=False, dbPackage='sqlalchemy', showEcho=False):
+    '''
+    Tries to connect to a database
+        typeCursor: simple or dict type of cursor
+        useLocalDb: True if using local, false if not 
+        userToken: userId/token to identify the user name 
+        dbName: name of the database
+        verbose: print some debugging info
+        dbPackage: mysqldb, sqlalchemy, pymysql, etc
+        showEcho: sqlalchemy-show db communications
+
+    Returns
+        status: True on success
+        dbConnection: connection to the database
+        cursor: cursor object (mysqldb only)
+    '''
+
+    host, user, pwd, databaseName = getDbConnectionParams(useLocalDb, userToken, dbName)
 
     if verbose is True:
         print host, user, pwd, databaseName
@@ -125,16 +157,15 @@ def getDbConnection(typeCursor='simple', useLocalDb=True, userToken=0, dbName='u
     status = False
     dbConnection = None
     cursor = None
-    if dbPackage == 'mysql':
+    if dbPackage == 'mysqldb':
         status, dbConnection, cursor = getMysqlPackageConnection(host, user, pwd, databaseName)
-    elif dbPackage == 'sqlalchemy':
-        cursor = None
-        status, dbConnection = getSqlalchemyConnection(user, pwd, host, databaseName)
-
-    return status, dbConnection, cursor
+        return status, dbConnection, cursor
+    elif dbPackage == 'sqlalchemy':        
+        status, dbConnection, engine = getSqlalchemyConnection(user, pwd, host, databaseName, showEcho=showEcho)
+        return status, dbConnection, engine
 
 if __name__ == "__main__":
-    status, dbConnection, cursor = getDbConnection(verbose=True)
+    status, dbConnection, cursor = getDbConnection(verbose=True, showEcho=True)
     print status, type(dbConnection), type(cursor)
     if status is True:
         closeDbConnection.closeDbConnection(cursor, dbConnection)
