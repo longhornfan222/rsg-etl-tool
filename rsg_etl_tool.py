@@ -20,7 +20,7 @@
 # or consequential damages arising out of, or in connection with, the use of this 
 # software. USE AT YOUR OWN RISK.
 #
-# __version__ = '2020 0215 2255'
+# __version__ = '2020 0215 2320'
 ###############################################################################
 from PyQt5 import QtGui, QtCore, QtWidgets
 from PyQt5.QtCore import pyqtSignal
@@ -67,6 +67,7 @@ class RsgEtlApp(QtWidgets.QMainWindow, rsg_etl_tool_ui.Ui_MainWindow):
         self.rpnKnownTablesCsv = rpnKnownTablesCsv
         self.assertRpnKnownTablesCsv()
         self.lstTablesInDb.clicked.connect(self.slotLstTablesInDbItemClicked)
+        self.selectedTableName = ''
 
 
         # Frame Bottom Frame - tableWidgetAttributesInSelectedTable
@@ -79,6 +80,7 @@ class RsgEtlApp(QtWidgets.QMainWindow, rsg_etl_tool_ui.Ui_MainWindow):
         self.isDataFolderSet = False
         self.isPerformingEtl=False
         self.isDescribingTable=False
+        self.isTableSelected = False
 
         # Disable buttons
         self.butNewTable.setEnabled(False)
@@ -167,7 +169,9 @@ class RsgEtlApp(QtWidgets.QMainWindow, rsg_etl_tool_ui.Ui_MainWindow):
         msg += '4. ETL is not occuring (Done)\n'
         #print msg
 
-        if self.isDataFolderSet is True and (self.isPerformingEtl is False and self.isDescribingTable is False):
+        if self.isDataFolderSet is True and \
+            (self.isPerformingEtl is False and self.isDescribingTable is False)\
+            and self.isTableSelected is True:
             self.butPopulate.setEnabled(True)
         else:
             self.butPopulate.setEnabled(False)
@@ -253,10 +257,13 @@ class RsgEtlApp(QtWidgets.QMainWindow, rsg_etl_tool_ui.Ui_MainWindow):
     def loadDfInDatabase(self):
         '''' 
         Implements Load process of ETL
-        '''
-        dbTableName = 'Generator'
+        '''        
+        # Get the table into which data will be inserted
+        if self.selectedTableName == '':
+            return
+
         # define and start a thread 
-        self.loadThread = ThreadLoad.LoadThread(self.transformedDf, dbTableName)
+        self.loadThread = ThreadLoad.LoadThread(self.transformedDf, self.selectedTableName)
         # connect the signals to slots
         self.loadThread.signalLoadComplete.connect(self.slotLoadComplete)
         self.loadThread.signalProgress.connect(self.slotUpdatePbProgressBar)
@@ -406,11 +413,15 @@ class RsgEtlApp(QtWidgets.QMainWindow, rsg_etl_tool_ui.Ui_MainWindow):
         '''
         # disable populate button
         self.isDescribingTable=True
+        # set selected table
+        self.isTableSelected = True
         self.checkState()
 
-        tableName = item.data()
+        # Store the table name
+        self.selectedTableName = item.data()
+
         # define and start a thread to interact with DB
-        self.describeTableThread = ThreadDescribeTable.DescribeTableThread(tableName)
+        self.describeTableThread = ThreadDescribeTable.DescribeTableThread(self.selectedTableName)
         # connect the signals to slots
         self.describeTableThread.signalDescribeTableComplete.connect(self.slotDescribeTableComplete)
         self.describeTableThread.signalProgress.connect(self.slotUpdatePbProgressBar)
