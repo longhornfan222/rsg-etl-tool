@@ -20,7 +20,7 @@
 # or consequential damages arising out of, or in connection with, the use of this 
 # software. USE AT YOUR OWN RISK.
 #
-# __version__ = '2020 0215 2216'
+# __version__ = '2020 0215 2255'
 ###############################################################################
 from PyQt5 import QtGui, QtCore, QtWidgets
 from PyQt5.QtCore import pyqtSignal
@@ -34,6 +34,7 @@ import readCsvIntoList
 import ThreadDescribeTable
 import ThreadExtract
 import ThreadGetCsvHeader
+import ThreadGetTableNamesFromDb
 import ThreadTransform
 import ThreadLoad
 
@@ -114,6 +115,7 @@ class RsgEtlApp(QtWidgets.QMainWindow, rsg_etl_tool_ui.Ui_MainWindow):
             print errMsg
             exit()
         self.loadKnownTablesCsvIntoList()
+        self.loadKnownTablesFromDb()
 
 
     def checkState(self):
@@ -287,6 +289,19 @@ class RsgEtlApp(QtWidgets.QMainWindow, rsg_etl_tool_ui.Ui_MainWindow):
         # Put data from csv into rsg-etl-tool gui list
         self.updateLstTablesInDb()
 
+    def loadKnownTablesFromDb(self):
+        '''
+        Retrieves Table Names from DB
+        '''
+        # define and start a thread to interact with DB
+        self.tableNamesThread = ThreadGetTableNamesFromDb.GetTableNamesFromDbThread()
+        # connect the signals to slots
+        self.tableNamesThread.signalGetTableNamesFromDbComplete.connect(self.slotGetTableNamesFromDbComplete)
+        self.tableNamesThread.signalProgress.connect(self.slotUpdatePbProgressBar)
+        self.tableNamesThread.signalStatusMsg.connect(self.slotStatusMessage)
+        # Start
+        self.tableNamesThread.start()
+
     def slotButOpenFolderClicked(self):
         '''
             Slot to handle Open Folder button click
@@ -336,6 +351,16 @@ class RsgEtlApp(QtWidgets.QMainWindow, rsg_etl_tool_ui.Ui_MainWindow):
         if self.extractedDataDf is not None:
             self.transformDataInDf()
 
+    def slotGetTableNamesFromDbComplete(self, tableNames):
+        '''
+        Updates tablenames with database data
+        '''
+        if tableNames:
+            for name in tableNames:
+                self.tableNames.append(name)
+            # remove duplicates        
+            self.tableNames = list(set(self.tableNames))        
+            self.updateLstTablesInDb()
 
     def slotInvalidFile(self, fileName, errorMsg):
         '''# TODO'''
@@ -373,8 +398,6 @@ class RsgEtlApp(QtWidgets.QMainWindow, rsg_etl_tool_ui.Ui_MainWindow):
         self.getCsvHeaderThread.signalProgress.connect(self.slotUpdatePbProgressBar)
         self.getCsvHeaderThread.signalStatusMsg.connect(self.slotStatusMessage)
         self.getCsvHeaderThread.start()
-
-        return
 
     def slotLstTablesInDbItemClicked(self, item):
         '''
@@ -469,7 +492,7 @@ class RsgEtlApp(QtWidgets.QMainWindow, rsg_etl_tool_ui.Ui_MainWindow):
         self.tableWidgetAttributesInSelectedTable.clearContents()
         self.tableWidgetAttributesInSelectedTable.setRowCount(0)
         # Fixes some bugs by disabling sorting here
-        self.tableWidgetAttributesInSelectedTable.setSortingEnabled(False)
+        self.tableWidgetAttributesInSelectedTable.setSortingEnabled(False)        
         # Begin inserting
         currentRowCount = self.tableWidgetAttributesInSelectedTable.rowCount()
         for row in self.currentTableMetaData:
