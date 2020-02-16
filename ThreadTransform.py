@@ -20,7 +20,7 @@
 # or consequential damages arising out of, or in connection with, the use of this 
 # software. USE AT YOUR OWN RISK.
 #
-#__version__ = '2020 0215 2300'
+#__version__ = '2020 0216 1430'
 ###############################################################################
 
 from PyQt5.QtCore import QThread, pyqtSignal
@@ -113,6 +113,8 @@ class TransformThread(QThread):
             newK = newK.replace('?', doubleUnderscore)
             newK = newK.replace('<', doubleUnderscore)
             newK = newK.replace('>', doubleUnderscore)
+            newK = newK.replace('\\', doubleUnderscore)
+            newK = newK.replace('/', doubleUnderscore)
 
             # TODO other special characters
             newKeys[k]=newK
@@ -141,7 +143,6 @@ class TransformThread(QThread):
       
     def setNull(self):
         '''
-        TODO
-        Probably unnecessary for dataframe implemntation
+        Unfortunately, have to handle Null handing at load
         '''
         return
