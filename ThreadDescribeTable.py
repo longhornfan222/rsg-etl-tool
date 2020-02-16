@@ -20,15 +20,15 @@
 # or consequential damages arising out of, or in connection with, the use of this 
 # software. USE AT YOUR OWN RISK.
 #
-#__version__ = '2020 0215 2126'
+#__version__ = '2020 0215 2236'
 ###############################################################################
 
 from PyQt5.QtCore import QThread, pyqtSignal
 import os, sys
+
 import sqlalchemy
 
 import db.getDbConnection
-
 
 class DescribeTableThread(QThread):
     '''

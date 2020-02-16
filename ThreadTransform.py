@@ -20,7 +20,7 @@
 # or consequential damages arising out of, or in connection with, the use of this 
 # software. USE AT YOUR OWN RISK.
 #
-__version__ = '2020 0213 1151'
+#__version__ = '2020 0215 2300'
 ###############################################################################
 
 from PyQt5.QtCore import QThread, pyqtSignal
@@ -130,13 +130,13 @@ class TransformThread(QThread):
 
     def transformFawnDateTime(self, dtColName):
         '''
-        Adds a python datetime series to the datafram
+        Adds a python datetime series to the dataframe
         ''' 
         # This operation results in a pandas Series
         dateCol = self.df[dtColName]
         series = dateCol.transform(self.convertFawnDateTime)
         
-        self.df['datetime'] = series
+        self.df['dateTimeSampled'] = series
 
       
     def setNull(self):
