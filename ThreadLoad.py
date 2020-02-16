@@ -20,11 +20,13 @@
 # or consequential damages arising out of, or in connection with, the use of this 
 # software. USE AT YOUR OWN RISK.
 #
-__version__ = '2020 0213 2208'
+#__version__ = '2020 0216 1423'
 ###############################################################################
 
 from PyQt5.QtCore import QThread, pyqtSignal
 import os, sys
+
+import sqlalchemy as sa
 
 import pandas
 
@@ -40,13 +42,18 @@ class LoadThread(QThread):
             be loaded
             
     '''
-    def __init__(self, df=None, dbTableName=None):
+    def __init__(self, df=None, dbTableName=None, showEcho=False, useLocalDb=True, userToken=0, dbName='umiami'):
         '''
             Class constructor
         '''
         QThread.__init__(self)
         self.df = df
         self.dbTableName = dbTableName
+
+        self.showEcho = showEcho
+        self.useLocalDb = useLocalDb
+        self.userToken = userToken
+        self.dbName = dbName        
     
     def __del__(self):
         '''
@@ -65,6 +72,7 @@ class LoadThread(QThread):
     signalStatusMsg = pyqtSignal(str, str)
 
     connection = None
+    engine = None
     cursor = None
 
     def run(self):
@@ -92,42 +100,44 @@ class LoadThread(QThread):
 
         # close connection
         msg1 = 'LoadThread::run():'
-        msg2 = 'Closing DB connection'
+        msg2 = 'Closing DB connection'        
         self.signalStatusMsg.emit(msg1, msg2)
         db.closeDbConnection.closeDbConnection(self.cursor, self.connection)
 
         self.signalLoadComplete.emit(loadStatus)
-            
-
-
+          
     def attemptDbConnection(self):
         '''
-        Attempts to connect to database using defaults in dbConfig.py. 
+        Attempts to connect to database. sqlalchemy manages closing connections (typically) 
+        https://docs.sqlalchemy.org/en/13/core/connections.html#engine-disposal
 
         status: True when the connection is successful
         self.connection: stores the connection until closed
-        self.cursor: stores the cursor until closed
+        self.engine: stores the engine 
+        
         '''
         msg1 = 'LoadThread::attemptDbConnection():'
         msg2 = 'Attempting to connected to DB...'
         self.signalStatusMsg.emit(msg1, msg2)
 
-        status, self.connection, self.cursor = db.getDbConnection.getDbConnection()
+        status, self.connection, self.engine = db.getDbConnection.getDbConnection(
+            useLocalDb=self.useLocalDb, userToken=self.userToken, dbName=self.dbName,
+            showEcho=self.showEcho)
         if status is False:
             msg1 = 'ERROR: LoadThread::attemptDbConnection(): '
             msg2 = 'Failed to connect to DB using defaults. Check db/dbConfig.py\n'
             msg2 += 'TODO Write failure details to log file\n'
             self.signalStatusMsg.emit(msg1, msg2)
-            self.signalLoadComplete.emit(False)
-            db.closeDbConnection.closeDbConnection(self.cursor, self.connection)
+            self.signalLoadComplete.emit(False)            
         return status
 
+    '''
     def attemptDbLoad(self):
-        '''
+        ###
         Attempts to load data into database. Closes connection on failure
 
         status: True when successful
-        '''
+        ###
         msg1 = 'LoadThread::attemptDbLoad():'
         msg2 = 'Attempting to load/update data'
         self.signalStatusMsg.emit(msg1, msg2)
@@ -145,5 +155,162 @@ class LoadThread(QThread):
         else:
             print "Table %s created successfully." % self.dbTableName  
             return True  
+    '''
 
-    
+    def attemptDbLoad(self):
+        '''
+        Attempts to load data into database
+
+        status: True when successful
+        '''
+
+        msg1 = 'LoadThread::attemptDbLoad():'
+        msg2 = 'Attempting to load data...'
+        self.signalStatusMsg.emit(msg1, msg2)
+
+        # identify primary key (pk) -- composite?
+        pkList = self.getPrimaryKey()        
+        # create the table if it doesn't exist
+        status = self.checkCreateTable(pkList)
+        if status is False:
+            return False
+        msg1 = 'LoadThread::attemptDbLoad():'
+        msg2 = 'Table \"' + str(self.dbTableName).lower() + '\" exists or was added.'
+        self.signalStatusMsg.emit(msg1, msg2)
+
+        # insert the data - check for failures
+        msg1 = 'LoadThread::attemptDbLoad():'
+        msg2 = 'Attempting to insert data...'
+        self.signalStatusMsg.emit(msg1, msg2)        
+        result = self.insertData()
+
+        
+        return True
+
+    def checkCreateTable(self, pkList):
+        '''
+        Checks if self.dbTableName table exists or creates it
+
+        pkList contains a list of primary keys
+
+        Returns/updates:
+        self.metadata and self.table exist
+        status is true on success
+        '''        
+        # Create sqlalchemy metadata object
+        self.metadata = sa.MetaData()
+        # Define table in metadata
+        self.table = sa.Table(self.dbTableName, self.metadata)
+
+        # Add columns to table
+        status = False
+        for key in self.df.keys():
+            # Check if primary key            
+            isPk = False
+            if key in pkList:                
+                isPk = True
+            # Get the data type
+            colType = self.getType(key)
+            # Define the column
+            col = sa.schema.Column(str(key), colType, primary_key=isPk )
+            # add the column to the table
+            try:
+                self.table.append_column(col)
+            except Exception as e:
+                status = False
+                msg1 = 'LoadThread::checkCreateTable():'
+                msg2 = str(e)
+                self.signalStatusMsg.emit(msg1, msg2)                
+                return status
+
+        # Create table if it doesn't exist
+        try:
+            self.metadata.create_all(self.engine, checkfirst=True)
+            status = True            
+        except Exception as e:
+            status = False
+            msg1 = 'LoadThread::checkCreateTable():'
+            msg2 = str(e)
+            self.signalStatusMsg.emit(msg1, msg2)            
+            status = False
+        
+        return status
+
+    def getPrimaryKey(self):
+        '''
+        Returns a list of the attributes to use for primary key (pk)
+                
+        For now (FAWN Reports), location and dateTimeSampled. Revise 
+        as date/requirements are better understood
+        '''
+        pkList = ['FAWN_Station', 'dateTimeSampled']
+        return pkList    
+
+    def getType(self, key):
+        '''
+        Returns a data type using the lookup dictionary and the key. Default
+        is effectively varchar(100)
+        '''
+        # Look up dictionary
+        typesDict = {
+            'float64': sa.DECIMAL(17,2),
+            'object': sa.String(50),
+            'datetime64[ns]':sa.DateTime()
+        }        
+        dataType = self.df.dtypes[key]
+
+        if str(dataType) in typesDict.keys():
+            return typesDict[str(dataType)]
+        else:
+            # 'Default' => varchar(100)
+            return sa.String(100)
+        
+    def insertData(self):
+        '''
+        Attempts to insert data in self.table 
+
+        Returns/updates:
+        self.table and the database contain the data on success
+        status is true on success
+        '''
+
+        #ins = users.insert().values(firstname='Ryan', lastname='Engle')        
+        # build insert statement (could execute many as dictionary)
+        ins = self.table.insert()
+
+        errCount = 0
+        insertCount = 0
+        dfCount = self.df.shape[0]
+        # 'INSERT INTO person (name, balance) VALUES (:name, :balance)', name = 'Joe', balance = 100)
+        for index, row in self.df.iterrows():            
+            sql = 'INSERT INTO ' + self.dbTableName + ' ('
+            # Add columns (keys)
+            for key in self.df.keys():
+                sql += str(key) + ', '
+            # trim last ', '
+            sql = sql[:-2]
+            sql += ') VALUES ('
+            
+            for key in self.df.keys():
+                if str(row[key]) == 'nan':
+                    sql += ' NULL, '
+                else:
+                    sql += '\'' +  str(row[key]) + '\', '
+            sql = sql[:-2] + ')'
+
+            # Execute insert            
+            try:
+                self.engine.execute(sql)
+            except Exception as e:
+                # should be duplicates
+                print e
+                errCount += 1
+            
+            insertCount += 1
+            self.signalProgress.emit(insertCount, dfCount)
+            #print insertCount, dfCount, errCount
+        
+        print errCount
+        return True
+
+        
