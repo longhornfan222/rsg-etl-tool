@@ -23,13 +23,25 @@
 #
 # REF: https://docs.sqlalchemy.org/en/13/core/tutorial.html
 #
-# __version__ = '2020 0215 1330'
+# __version__ = '2020 0215 2216'
 ###############################################################################
 
 import pandas
 import sqlalchemy as sa
 
 import getDbConnection
+
+def describeTable(tableName):
+    '''
+    Implements equivalent of DESCRIBE tableName 
+    '''
+    pks = getPrimaryKeys(tableName)
+    attribs = getTableAttributes(tableName)
+    if attribs is not None:        
+        mergePksIntoAttributes(attribs, pks)
+        return attribs
+    else:
+        return None
 
 def getEngine(showEcho=False):
     '''
@@ -61,12 +73,23 @@ def getPrimaryKeys(tableName, showEcho=False):
     insp = sa.inspect(engine)
     
     try:
-        # As a list of dictionaries
+        # As a list 
         pks = insp.get_primary_keys(tableName)
         return pks
     except Exception as e:
         print "ERROR: getTableAttributes(): " + str(e)
         return None
+
+def mergePksIntoAttributes(attributes, primaryKeys):
+    '''
+    Merges primary keys into attributes list
+    No error checking
+    '''
+    for a in attributes:            
+        if a['name'] in primaryKeys:
+            a['isPk'] = True
+        else:
+            a['isPk'] = False
 
 def getTableAttributes(tableName, showEcho=False):
     '''
@@ -86,18 +109,6 @@ def getTableAttributes(tableName, showEcho=False):
     except Exception as e:
         print "ERROR: getTableAttributes(): " + str(e)
         return None
-
-def mergePksIntoAttributes(attributes, primaryKeys):
-    '''
-    Merges primary keys into attributes list
-    No error checking
-    '''
-    for a in attributes:            
-        if a['name'] in primaryKeys:
-            a['isPk'] = True
-        else:
-            a['isPk'] = False
-
 
 def showExamples(tableName, showEcho=False):
     '''
@@ -133,13 +144,7 @@ def showExamples(tableName, showEcho=False):
     print messages.foreign_keys
 
     return messages.columns
-    
+
 if __name__ == '__main__':
-    #showExamples('sensordata')
-
-    pks = getPrimaryKeys('sensordata')
-    attribs = getTableAttributes('sensordata')
-    if attribs is not None:        
-        mergePksIntoAttributes(attribs, pks)
-
-    
+    showExamples('sensordata')
+    describeTable('sensordata')

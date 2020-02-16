@@ -20,7 +20,7 @@
 # or consequential damages arising out of, or in connection with, the use of this 
 # software. USE AT YOUR OWN RISK.
 #
-# __version__ = '2020 0213 2054'
+# __version__ = '2020 0215 2216'
 ###############################################################################
 from PyQt5 import QtGui, QtCore, QtWidgets
 from PyQt5.QtCore import pyqtSignal
@@ -31,8 +31,9 @@ import rsg_etl_tool_ui
 import findData
 import readCsvIntoList
 
-import ThreadGetCsvHeader
+import ThreadDescribeTable
 import ThreadExtract
+import ThreadGetCsvHeader
 import ThreadTransform
 import ThreadLoad
 
@@ -60,16 +61,24 @@ class RsgEtlApp(QtWidgets.QMainWindow, rsg_etl_tool_ui.Ui_MainWindow):
         # Frame Top Frame - Lists (slots)
         self.lstFilesInFolder.clicked.connect(self.slotLstFilesInFolderClicked)
 
-        # Frame Bottom Frame - Lists
-        # Known Tables
+        # Frame Bottom Frame - lstTablesInDb
+        # Load Known Tables
         self.rpnKnownTablesCsv = rpnKnownTablesCsv
         self.assertRpnKnownTablesCsv()
+        self.lstTablesInDb.clicked.connect(self.slotLstTablesInDbItemClicked)
 
-        # Frame Bottom Frame - Buttons
+
+        # Frame Bottom Frame - tableWidgetAttributesInSelectedTable
+
+        # Frame Bottom Frame - Buttons (slots)
         self.butPopulate.clicked.connect(self.slotButPopulateClicked)
         
 
         # Set initial GUI state
+        self.isDataFolderSet = False
+        self.isPerformingEtl=False
+        self.isDescribingTable=False
+
         # Disable buttons
         self.butNewTable.setEnabled(False)
         self.butPopulate.setEnabled(False)
@@ -84,6 +93,9 @@ class RsgEtlApp(QtWidgets.QMainWindow, rsg_etl_tool_ui.Ui_MainWindow):
         # Other variables
         if self.dataFolder is None:
             self.fqpnFileList = []
+
+        # Currently selected table metadata
+        self.currentTableMetaData = []
 
 
 ###############################################################################
@@ -104,29 +116,44 @@ class RsgEtlApp(QtWidgets.QMainWindow, rsg_etl_tool_ui.Ui_MainWindow):
         self.loadKnownTablesCsvIntoList()
 
 
-    def checkState(self, isDataFolderSet=False, isPerformingEtl=False):
+    def checkState(self):
         '''
             Checks various GUI states and updates functionality accordingly
         '''
-        self.checkStateNewTable(isPerformingEtl)
-        self.checkStateOpenFolder(isPerformingEtl)
-        self.checkStatePopulate(isDataFolderSet, isPerformingEtl)
+        self.checkStateLstTablesInDb()
+        self.checkStateNewTableButton()
+        self.checkStateOpenFolderButton()
+        self.checkStatePopulate()
         
-    def checkStateNewTable(self, isPerformingEtl=False):
+    def checkStateLstTablesInDb(self):
         ''' 
-        TODO implement else
+        Checks whether lstTablesInDb should be enabled
+        ''' 
+        if self.isPerformingEtl is True or self.isDescribingTable is True:
+            self.lstTablesInDb.setEnabled(False)
+        else:
+            self.lstTablesInDb.setEnabled(True)
+
+    def checkStateNewTableButton(self):
+        ''' 
+        Checks whether NewTableButton should be enabled
         '''
-        if isPerformingEtl is True:
+        if self.isPerformingEtl is True or self.isDescribingTable is True:
             self.butNewTable.setEnabled(False)
+        else:
+            self.butNewTable.setEnabled(True)
         
 
-    def checkStateOpenFolder(self, isPerformingEtl=False):
-        if isPerformingEtl is True:
+    def checkStateOpenFolderButton(self):
+        '''
+        Checks whether Open Folder button should be enabled
+        '''
+        if self.isPerformingEtl is True or self.isDescribingTable is True:
             self.butOpenFolder.setEnabled(False)
         else:
             self.butOpenFolder.setEnabled(True)
 
-    def checkStatePopulate(self, isDataFolderSet=False, isPerformingEtl=False):
+    def checkStatePopulate(self):
         '''
             Checks whether Populate button should be enabled
         '''
@@ -138,7 +165,7 @@ class RsgEtlApp(QtWidgets.QMainWindow, rsg_etl_tool_ui.Ui_MainWindow):
         msg += '4. ETL is not occuring (Done)\n'
         #print msg
 
-        if isDataFolderSet is True and isPerformingEtl is False:
+        if self.isDataFolderSet is True and (self.isPerformingEtl is False and self.isDescribingTable is False):
             self.butPopulate.setEnabled(True)
         else:
             self.butPopulate.setEnabled(False)
@@ -210,7 +237,8 @@ class RsgEtlApp(QtWidgets.QMainWindow, rsg_etl_tool_ui.Ui_MainWindow):
                 print 'initDataFolder(): Initializing with folder ' + self.dataFolder
                 self.lblSelectedDataFolder.setText(self.dataFolder)
                 self.loadFilesIntoList()
-                self.checkState(isDataFolderSet=True)
+                self.isDataFolderSet=True
+                self.checkState()
             else:
                 msg = 'WARNING initDataFolder(): Command line-specified data folder was invalid. '
                 msg += 'Click Open Folder to specify a valid folder.'
@@ -274,19 +302,30 @@ class RsgEtlApp(QtWidgets.QMainWindow, rsg_etl_tool_ui.Ui_MainWindow):
         # Fill list with files & update gui list
         # TODO Needs more error checking
         self.loadFilesIntoList()
-
-        self.checkState(isDataFolderSet=True)
+        self.isDataFolderSet=True
+        self.checkState()
 
 
     def slotButPopulateClicked(self):
         '''
-            Implements Populate Button Clicked
+        Implements Populate Button Clicked
         '''
+        self.isPerformingEtl=True
+        self.checkState()
         # Extract data from CSV to df
         self.extractDataFromCsvToDf()
-        self.checkState(isPerformingEtl=True)
         # everything following is asynchronous..
 
+    def slotDescribeTableComplete(self, describeData):
+        '''
+        '''
+        self.isDescribingTable=False
+        self.checkState()
+        # update attributes table widget if not empty
+        self.currentTableMetaData = describeData
+        self.updateTableWidgetAttributesInSelectedTable()
+            
+    
     def slotExtractComplete(self, df):
         '''
         Implements end of Extract and initiates Transform
@@ -312,14 +351,15 @@ class RsgEtlApp(QtWidgets.QMainWindow, rsg_etl_tool_ui.Ui_MainWindow):
         '''
         Implements ETL end actions
         '''
-        self.checkState(isDataFolderSet=True, isPerformingEtl=False)
+        self.isPerformingEtl=False
+        self.checkState()
         
 
     def slotLstFilesInFolderClicked(self,item):
         '''
-            Slot to handle single click in lstFilesinFolder
-            Populates columns in selected file list
-            Creates a thread to open the selected file
+        Slot to handle single click in lstFilesinFolder
+        Populates columns in selected file list
+        Creates a thread to open the selected file
         '''
         
         fqpn = self.getFqpnFromListItem(item)
@@ -335,6 +375,25 @@ class RsgEtlApp(QtWidgets.QMainWindow, rsg_etl_tool_ui.Ui_MainWindow):
         self.getCsvHeaderThread.start()
 
         return
+
+    def slotLstTablesInDbItemClicked(self, item):
+        '''
+        Slot to handle single click in this list
+        Checks db for data and loads Table attributes in Attributes Table Widget
+        '''
+        # disable populate button
+        self.isDescribingTable=True
+        self.checkState()
+
+        tableName = item.data()
+        # define and start a thread to interact with DB
+        self.describeTableThread = ThreadDescribeTable.DescribeTableThread(tableName)
+        # connect the signals to slots
+        self.describeTableThread.signalDescribeTableComplete.connect(self.slotDescribeTableComplete)
+        self.describeTableThread.signalProgress.connect(self.slotUpdatePbProgressBar)
+        self.describeTableThread.signalStatusMsg.connect(self.slotStatusMessage)
+        # Start
+        self.describeTableThread.start()
 
     def slotStatusMessage(self, entityAsString, message):
         '''
@@ -402,7 +461,37 @@ class RsgEtlApp(QtWidgets.QMainWindow, rsg_etl_tool_ui.Ui_MainWindow):
         for f in self.fqpnFileList:
             self.lstFilesInFolder.addItem(os.path.basename(f))
 
-        
+    def updateTableWidgetAttributesInSelectedTable(self):
+        '''
+        Updates attribute table with data in self.currentTableMetaData
+        '''
+        # Clear
+        self.tableWidgetAttributesInSelectedTable.clearContents()
+        self.tableWidgetAttributesInSelectedTable.setRowCount(0)
+        # Fixes some bugs by disabling sorting here
+        self.tableWidgetAttributesInSelectedTable.setSortingEnabled(False)
+        # Begin inserting
+        currentRowCount = self.tableWidgetAttributesInSelectedTable.rowCount()
+        for row in self.currentTableMetaData:
+            currentRowCount = self.tableWidgetAttributesInSelectedTable.rowCount()
+            self.tableWidgetAttributesInSelectedTable.insertRow(currentRowCount)
+            attribName = row['name']
+            self.tableWidgetAttributesInSelectedTable.setItem(currentRowCount, \
+                0, QtWidgets.QTableWidgetItem(attribName))
+            d1 = str(row['type'])
+            self.tableWidgetAttributesInSelectedTable.setItem(currentRowCount, \
+                1, QtWidgets.QTableWidgetItem(d1))            
+            nullable = str(row['nullable'])
+            self.tableWidgetAttributesInSelectedTable.setItem(currentRowCount, \
+                2, QtWidgets.QTableWidgetItem(nullable))            
+            isPk = str(row['isPk'])
+            self.tableWidgetAttributesInSelectedTable.setItem(currentRowCount, \
+                3, QtWidgets.QTableWidgetItem(isPk))            
+            defaultValue = str(row['default'])
+            self.tableWidgetAttributesInSelectedTable.setItem(currentRowCount, \
+                4, QtWidgets.QTableWidgetItem(defaultValue))
+        # Re-enable sorting
+        self.tableWidgetAttributesInSelectedTable.setSortingEnabled(True)
 
 def start(rpnKnownTablesCsv, pathToData=None):
     '''
