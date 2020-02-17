@@ -20,7 +20,7 @@
 # or consequential damages arising out of, or in connection with, the use of this 
 # software. USE AT YOUR OWN RISK.
 #
-#__version__ = '2020 0216 1423'
+#__version__ = '2020 0217 0629'
 ###############################################################################
 
 from PyQt5.QtCore import QThread, pyqtSignal
@@ -281,7 +281,7 @@ class LoadThread(QThread):
         errCount = 0
         insertCount = 0
         dfCount = self.df.shape[0]
-        # 'INSERT INTO person (name, balance) VALUES (:name, :balance)', name = 'Joe', balance = 100)
+        # INSERT INTO person (name, balance) VALUES ('Joe', 100)
         for index, row in self.df.iterrows():            
             sql = 'INSERT INTO ' + self.dbTableName + ' ('
             # Add columns (keys)
@@ -294,8 +294,10 @@ class LoadThread(QThread):
             for key in self.df.keys():
                 if str(row[key]) == 'nan':
                     sql += ' NULL, '
-                else:
-                    sql += '\'' +  str(row[key]) + '\', '
+                else:                    
+                    # repr preserves precision when converting to string
+                    # https://stackoverflow.com/questions/3481289/converting-a-python-float-to-a-string-without-losing-precision
+                    sql += '\'' +  repr(row[key]) + '\', '
             sql = sql[:-2] + ')'
 
             # Execute insert            
