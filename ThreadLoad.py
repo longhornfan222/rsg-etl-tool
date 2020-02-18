@@ -20,7 +20,7 @@
 # or consequential damages arising out of, or in connection with, the use of this 
 # software. USE AT YOUR OWN RISK.
 #
-#__version__ = '2020 0217 0629'
+#__version__ = '2020 0217 2108'
 ###############################################################################
 
 from PyQt5.QtCore import QThread, pyqtSignal
@@ -297,7 +297,10 @@ class LoadThread(QThread):
                 else:                    
                     # repr preserves precision when converting to string
                     # https://stackoverflow.com/questions/3481289/converting-a-python-float-to-a-string-without-losing-precision
-                    sql += '\'' +  repr(row[key]) + '\', '
+                    temp = repr(row[key]).replace('\'', '')
+                    temp = temp.replace('Timestamp(', '')
+                    temp = temp.replace(')', '')                    
+                    sql += '\'' +  temp + '\', '
             sql = sql[:-2] + ')'
 
             # Execute insert            
