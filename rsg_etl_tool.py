@@ -20,7 +20,7 @@
 # or consequential damages arising out of, or in connection with, the use of this 
 # software. USE AT YOUR OWN RISK.
 #
-# __version__ = '2020 0215 2320'
+# __version__ = '2020 0217 2050'
 ###############################################################################
 from PyQt5 import QtGui, QtCore, QtWidgets
 from PyQt5.QtCore import pyqtSignal
@@ -30,6 +30,7 @@ import rsg_etl_tool_ui
 
 import findData
 import readCsvIntoList
+import sanitizeInputForMySql
 
 import ThreadDescribeTable
 import ThreadExtract
@@ -64,6 +65,7 @@ class RsgEtlApp(QtWidgets.QMainWindow, rsg_etl_tool_ui.Ui_MainWindow):
 
         # Frame Bottom Frame - lstTablesInDb
         # Load Known Tables
+        self.tableNames = []
         self.rpnKnownTablesCsv = rpnKnownTablesCsv
         self.assertRpnKnownTablesCsv()
         self.lstTablesInDb.clicked.connect(self.slotLstTablesInDbItemClicked)
@@ -74,7 +76,7 @@ class RsgEtlApp(QtWidgets.QMainWindow, rsg_etl_tool_ui.Ui_MainWindow):
 
         # Frame Bottom Frame - Buttons (slots)
         self.butPopulate.clicked.connect(self.slotButPopulateClicked)
-        
+        self.butNewTable.clicked.connect(self.slotButNewTableClicked)        
 
         # Set initial GUI state
         self.isDataFolderSet = False
@@ -93,7 +95,7 @@ class RsgEtlApp(QtWidgets.QMainWindow, rsg_etl_tool_ui.Ui_MainWindow):
         self.dataFolder = fqpnToData 
         self.initDataFolder()
 
-        # Other variables
+        # Other variables        
         if self.dataFolder is None:
             self.fqpnFileList = []
 
@@ -115,9 +117,9 @@ class RsgEtlApp(QtWidgets.QMainWindow, rsg_etl_tool_ui.Ui_MainWindow):
             exit()
         if not os.path.isfile(self.rpnKnownTablesCsv):
             print errMsg
-            exit()
-        self.loadKnownTablesCsvIntoList()
+            exit()        
         self.loadKnownTablesFromDb()
+        self.loadKnownTablesCsvIntoList()
 
 
     def checkState(self):
@@ -283,18 +285,17 @@ class RsgEtlApp(QtWidgets.QMainWindow, rsg_etl_tool_ui.Ui_MainWindow):
             Load tables names from csv file to tables in DB list
         '''
         # Read csv into a python list
-        self.tableNames = readCsvIntoList.readCsvIntoList(self.rpnKnownTablesCsv)
+        tableNames = readCsvIntoList.readCsvIntoList(self.rpnKnownTablesCsv)
         # Munge table names to MySQL
-        if self.tableNames is not None:
-            # TODO validate
-            pass
-            
+        if tableNames is not None:
+            for i in range(0, len(tableNames)):
+                tableNames[i] = sanitizeInputForMySql.sanitizeInputForMySql(tableNames[i])
         else:
             errMsg = 'ERROR: loadKnownTablesCsvIntoList(): Error loading Table Names in ' 
             errMsg += self.rpnKnownTablesCsv
             exit()
-        # Put data from csv into rsg-etl-tool gui list
-        self.updateLstTablesInDb()
+        # Put data from csv into rsg-etl-tool gui list and store in state variable
+        self.updateTableNames(tableNames)
 
     def loadKnownTablesFromDb(self):
         '''
@@ -309,6 +310,20 @@ class RsgEtlApp(QtWidgets.QMainWindow, rsg_etl_tool_ui.Ui_MainWindow):
         # Start
         self.tableNamesThread.start()
 
+    def slotButNewTableClicked(self):
+        '''
+        Slot to handle New Folder button click
+        '''
+        # Get user input
+        text, okPressed = QtWidgets.QInputDialog.getText(self, "Enter the Name for a New Table",\
+            "Table Name:", QtWidgets.QLineEdit.Normal, "")        
+        if okPressed is False:
+            return            
+        textList = []
+        textList.append(sanitizeInputForMySql.sanitizeInputForMySql(text))
+        # Updates list and list widget
+        self.updateTableNames(textList)
+                
     def slotButOpenFolderClicked(self):
         '''
             Slot to handle Open Folder button click
@@ -363,11 +378,14 @@ class RsgEtlApp(QtWidgets.QMainWindow, rsg_etl_tool_ui.Ui_MainWindow):
         Updates tablenames with database data
         '''
         if tableNames:
+            ''''
             for name in tableNames:
                 self.tableNames.append(name)
             # remove duplicates        
             self.tableNames = list(set(self.tableNames))        
             self.updateLstTablesInDb()
+            '''
+            self.updateTableNames(tableNames)
 
     def slotInvalidFile(self, fileName, errorMsg):
         '''# TODO'''
@@ -482,18 +500,35 @@ class RsgEtlApp(QtWidgets.QMainWindow, rsg_etl_tool_ui.Ui_MainWindow):
         '''
             Updates lstTablesInDb 
         '''
-        self.lstTablesInDb.clear()
-        self.tableNames.sort()
-        for tableName in self.tableNames:
-            self.lstTablesInDb.addItem(tableName)
+        self.lstTablesInDb.clear()                
+        for tableName in self.tableNames:                        
+            self.lstTablesInDb.addItem(tableName.lower())        
+        # Sort
+        self.lstTablesInDb.sortItems()
 
     def updateLstFilesInFolder(self):
         '''
-            Updates lstFilesInFolder using fqpn data from self.fileList
+        Updates lstFilesInFolder using fqpn data from self.fileList
         '''
         self.lstFilesInFolder.clear()
         for f in self.fqpnFileList:
             self.lstFilesInFolder.addItem(os.path.basename(f))
+
+    def updateTableNames(self, newNamesList=[]):
+        ''' 
+        Adds newNamesLists items to self.tableNames if 
+        items are not already in self.tableNames
+        '''
+        for aName in newNamesList:
+            if self.tableNames:
+                if aName in self.tableNames:
+                    pass
+                else:
+                    self.tableNames.append(aName.lower())
+            else:
+                self.tableNames.append(aName.lower())
+        # Update the List Widget
+        self.updateLstTablesInDb()
 
     def updateTableWidgetAttributesInSelectedTable(self):
         '''
